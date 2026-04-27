@@ -3,8 +3,14 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
-from webprobe import engine
+# Make `python3 webprobe/probe.py <target>` work directly per spec install flow,
+# in addition to `python3 -m webprobe.probe <target>`.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from webprobe import engine  # noqa: E402  (sys.path tweak above is intentional)
 
 DESCRIPTION = (
     "WebProbe — a small, legible web vulnerability scanner. "
