@@ -1,0 +1,39 @@
+══════════════════ FINDINGS ══════════════════
+
+[MEDIUM] Missing Content-Security-Policy
+  URL:        http://example.com
+  Evidence:   header absent on response
+  Fix:        Add Content-Security-Policy header restricting allowed sources.
+  FIT3048:    Category 5
+
+[MEDIUM] Missing X-Frame-Options
+  URL:        http://example.com
+  Evidence:   header absent on response
+  Fix:        Set X-Frame-Options: DENY or SAMEORIGIN to prevent clickjacking.
+  FIT3048:    Category 5
+
+[LOW] Missing X-Content-Type-Options
+  URL:        http://example.com
+  Evidence:   header absent on response
+  Fix:        Set X-Content-Type-Options: nosniff.
+  FIT3048:    Category 5
+
+[LOW] Missing Referrer-Policy
+  URL:        http://example.com
+  Evidence:   header absent on response
+  Fix:        Set Referrer-Policy to limit leaked URL info.
+  FIT3048:    Category 5
+
+[LOW] Server header disclosed
+  URL:        http://example.com
+  Evidence:   Server: cloudflare
+  Fix:        Suppress or generic-ize the Server header to avoid version disclosure.
+  FIT3048:    Category 3
+
+
+Target:    http://example.com
+Modules:   5 scheduled, 5 completed, 0 errored
+Findings:  5 (0 CRITICAL, 0 HIGH, 2 MEDIUM, 3 LOW, 0 INFO)
+Report:    webprobe_example.com_80_20260428_020818.html
+Duration:  0.2s
+
