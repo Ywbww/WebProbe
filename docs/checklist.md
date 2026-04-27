@@ -43,7 +43,7 @@
 
 ## Checklist
 
-- [ ] **1. Repo skeleton + git init**
+- [x] **1. Repo skeleton + git init**
   Spec ref: `spec.md > File Structure` and `spec.md > Stack`
   What to build: Create the directory tree exactly per `spec.md > File
   Structure` (`webprobe/`, `webprobe/modules/`, `webprobe/output/`,
@@ -60,7 +60,7 @@
   Verify: Run the import command above. Confirm "1.0.0" prints. Run
   `git log --oneline` and confirm one commit exists.
 
-- [ ] **2. Data model — Finding, Form, Target**
+- [x] **2. Data model — Finding, Form, Target**
   Spec ref: `spec.md > Data Model`
   What to build: `webprobe/findings.py`. Define `SEVERITY_ORDER =
   ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]`. `@dataclass class
@@ -78,7 +78,7 @@
   Construct one with `severity="WRONG"` — AssertionError. Construct one
   with `fit3048_category=11` — AssertionError.
 
-- [ ] **3. BaseModule ABC + module manifest**
+- [x] **3. BaseModule ABC + module manifest**
   Spec ref: `spec.md > BaseModule Contract` and `spec.md > Module
   Registration`
   What to build: `webprobe/modules/base.py` with `class BaseModule(ABC)`:
@@ -94,7 +94,7 @@
   prints `[]`. `python3 -c "from webprobe.modules.base import BaseModule;
   BaseModule()"` raises `TypeError: Can't instantiate abstract class`.
 
-- [ ] **4. Thread-local session factory**
+- [x] **4. Thread-local session factory**
   Spec ref: `spec.md > Concurrency Model > Thread-Local Session Factory`
   What to build: `webprobe/session.py`. `make_session_factory(args) ->
   Callable[[], requests.Session]` returns a closure. Inside the closure:
@@ -110,7 +110,7 @@
   same object. Spawn a `threading.Thread` that calls the factory and
   appends to a list → list[0] is a different Session object.
 
-- [ ] **5. Output palette + terminal renderers**
+- [x] **5. Output palette + terminal renderers**
   Spec ref: `spec.md > Output Sinks > output/colors.py` and `spec.md >
   Output Sinks > output/terminal.py`
   What to build:
@@ -145,7 +145,7 @@
   colored. Findings block sorts correctly. Summary's clean-scan path
   prints when findings list is empty.
 
-- [ ] **6. Headers module — first detection module, registered**
+- [x] **6. Headers module — first detection module, registered**
   Spec ref: `spec.md > Detection Modules > headers`
   What to build: `webprobe/modules/headers.py`. `HeadersModule(BaseModule)`
   with `name = "headers"`, `category = "headers"`. `run()` reads
@@ -167,7 +167,7 @@
   Verify: `wc -l webprobe/modules/headers.py` ≤ 50. Defer end-to-end
   test until item 7.
 
-- [ ] **7. Engine + CLI entrypoint (vertical slice)**
+- [x] **7. Engine + CLI entrypoint (vertical slice)**
   Spec ref: `spec.md > Engine` (probe.py + engine.py + argument parsing
   + banner + connectivity check + target discovery + module dispatch)
   and `spec.md > Error Handling`
