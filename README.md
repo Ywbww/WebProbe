@@ -65,8 +65,8 @@ can detect.)
 
 ## Install
 
-    git clone <repo-url>
-    cd webprobe-project
+    git clone https://github.com/Ywbww/WebProbe.git
+    cd WebProbe
     pip3 install -r requirements.txt
 
 Requires Python 3.10+. Three dependencies: `requests`,
