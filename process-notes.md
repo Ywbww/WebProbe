@@ -548,3 +548,141 @@ offer (declined).
 - The `<a>` + `<button>` "DO NOT WRAP" inline HTML comment in item 13
   is critical: clipboard JS depends on `previousElementSibling`. If
   any wrapping seems convenient during HTML rendering, resist it.
+
+## /build
+
+**Build mode:** Autonomous with three named checkpoints (A after item 7,
+B after item 12, C after item 15). 18 items planned, 18 complete. No
+revisions to the checklist mid-build — the plan held end-to-end.
+
+**Total items completed:** 18 of 18.
+
+**Commits:** 19 commits on master, conventional-commits style. One
+`chore:` (item 1 scaffolding), eleven `feat:` (items 2–6, 8–15), one
+`docs:` (item 16 README), one `fix:` (item 7 follow-up: `python3
+webprobe/probe.py` direct invocation needed a `sys.path` shim — the
+spec/PRD's install line wouldn't have worked without it), and a small
+docs commit marking checklist progress at Checkpoint A.
+
+**Checkpoint observations:**
+
+- *A (after item 7).* Vertical slice ran clean against `http://example.com`
+  on first try — banner / connectivity / headers tease lines / FINDINGS
+  block / summary all rendered with right markers. One mid-checkpoint
+  fix: subagent had only made `python3 -m webprobe.probe` work, but the
+  spec acceptance is `python3 webprobe/probe.py <target>`. Fixed in
+  `d6db320` with a 3-line `sys.path.insert` shim. Worth flagging because
+  the underlying issue (Python's import system + script-vs-module
+  invocation) recurs in any package-shaped CLI without an entry point —
+  the shim is the lowest-friction fix; a `pyproject.toml` console_scripts
+  entry would be the proper Sprint 2 move.
+
+- *B (after item 12).* 50-line audit across all 6 detection modules:
+  headers=49, info_disclosure=49, paths=46, sqli=47, xss=43,
+  traversal=50. Every module under the cap. Helper extraction (the
+  `_<name>_helpers.py` carryover anticipated in /spec) was needed for
+  sqli, xss, traversal, paths — that pattern landed cleanly. A bonus:
+  during item 10 (xss), `_common.py` was extracted to host
+  `build_units(target)` and `send(...)` because three modules
+  (sqli/xss/traversal) shared the same per-param HTTP work. That
+  refactor was the right call — three uses justify the abstraction —
+  and validated retroactively when traversal landed at item 11 with no
+  duplication. The "engine OR's `getattr(module, 'degraded', False)`
+  into `args.partial`" convention also held across all four
+  HTTP-issuing modules without churn.
+
+- *C (after item 15).* Manual file:// browser test on the HTML report
+  passed in both Firefox and Chrome. The text-selection fallback
+  (Selection + Range API, no execCommand) fired correctly when
+  navigator.clipboard.writeText silently failed in Firefox's
+  insecure-context handling. Three demo HTML reports were generated
+  (default severity grouping with OPERATIONAL_RISK chip + partial
+  banner, fit3048 grouping, and the live example.com run) — structural
+  assertions all passed: 3 DO NOT WRAP comments per report, 3
+  `</a><button class="copy-btn"` direct-sibling matches, 1200ms flash
+  timeout, zero `execCommand` occurrences, html.escape applied to all
+  dynamic strings.
+
+**Item 17 — win condition met without a △1 loop-back.** Trump ran the
+scanner himself against the Team 157 FIT3047 CakePHP project at
+`https://u26s1157.iedev.org/team157-app_fit3047/users/login` (see
+`screenshots/webprobe_u26s1157.iedev.org_443_20260428_014210.html`).
+
+- 11 findings: 0 CRITICAL, 2 HIGH (csrfToken missing Secure; HSTS
+  missing), 5 MEDIUM (CSP/X-Frame-Options missing; /cpanel,
+  /.htaccess, /.htpasswd exposed), 4 LOW. 6 modules scheduled, 6
+  completed, 0 errored, 11.8s.
+- The /cpanel + /.htaccess + /.htpasswd findings are the unknown-unknown
+  the win condition required — deployment-environment defaults from
+  cPanel/Apache that Trump did not previously know were exposed. PRD
+  win condition met.
+- sqli/xss producing zero findings was diagnosed as adequate defense
+  quality, not a calibration miss: the Team 157 stack uses CakePHP 5
+  ORM (parameterised queries by default) + `h()` auto-escaping +
+  FormHelper CSRF tokens. Detector silence on a defended login form is
+  the detector telling the truth. Trump explicitly declined to lower
+  `DIFF_THRESHOLD` from 0.30 to 0.15 — that would manufacture false
+  positives without specific knowledge of a missed defect, and the
+  spec carryover loop-back protocol was scoped to known-vulnerability
+  cases.
+- The two HIGH findings (csrfToken Secure flag, HSTS) are genuinely
+  actionable items being routed to a Team 157 Iteration 2 backlog
+  separate from this build. WebProbe produced security work, not just
+  a screenshot.
+
+**Item 18 scope reduction.** Devpost dropped per the README reframe at
+item 16 (coursework helper, not hackathon project). GitHub push handled
+out-of-band (private repo as canonical artifact). Item ticked with the
+scope reduction noted in the checklist body so /reflect can pick it up.
+
+**Cross-cutting build observations:**
+
+- *50-line constraint as verification step, not aspiration.* It worked
+  exactly as Trump framed it at /spec → /checklist. Every module
+  landed at or under 50 lines on the first build attempt; helper
+  extraction caught the two cases (sqli at 62-ish initially, paths at
+  similar) that needed structural relief. No item required relaxing
+  the rule.
+- *Distributed error handling under autonomous mode.* The decision at
+  /checklist that the per-module 3-consecutive-failure tracker
+  belonged inside affected items rather than as a cross-cutting
+  reliability sub-slice paid off — every module that landed it (sqli,
+  xss, traversal, paths) got the tracker right on first try because
+  the surrounding context was fresh. Confirms /checklist's
+  `Active shaping` note about the fourth supporting reason for
+  autonomous mode.
+- *`<a>` + `<button>` "DO NOT WRAP" guard held.* The inline HTML
+  comment was honored verbatim in item 13's render, the JS read
+  `previousElementSibling` correctly, and the manual browser test
+  exercised exactly the fragile path the constraint was designed to
+  protect.
+- *Spec-vs-build line preserved.* Three deferrals from /spec landed
+  at /build with reasoned defaults: SQLi DIFF_THRESHOLD = 0.30 (named
+  constant in `_sqli_helpers.py`, auditable for FIT3047 calibration);
+  module-error tip = generic "re-run with -v"; verbose `[.]` line
+  emission in paths.py = explicitly skipped at item 15 with the
+  rationale recorded ("string-level deferral, can be re-opened").
+- *Build duration vs estimate.* /checklist estimated 4.5 hours.
+  Actual was longer — autonomous mode + subagent dispatch overhead
+  + the manual browser test at Checkpoint C extended wall-clock,
+  but every item landed in one pass without rebuild loops. The
+  3-checkpoint structure was right-sized: enough granularity to
+  catch problems early, not so much it stalled momentum.
+
+**Carryover for /reflect:**
+
+- The Team 157 audit is a real artifact, not a demo. Two HIGH
+  findings + three MEDIUM path exposures will inform Iteration 2
+  remediation work.
+- The `python3 webprobe/probe.py <target>` UX — fixed by sys.path
+  shim — is functional but ugly; a `pyproject.toml` console_scripts
+  entry is the right Sprint 2 polish.
+- sqli's DIFF_THRESHOLD = 0.30 was never calibrated against a
+  known-vulnerable target. If a future FIT3047 audit surfaces a
+  known SQLi that WebProbe missed, the threshold is the first
+  variable to revisit.
+- The `_common.py` extraction (item 10) is the kind of refactor
+  that Sprint 2 should formalise — when authenticated scanning
+  lands, the `send()` helper will need a `cookies=` parameter,
+  and having all three HTTP-issuing modules go through one
+  function is the right place to add it.

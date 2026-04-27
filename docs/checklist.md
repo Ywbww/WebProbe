@@ -488,7 +488,7 @@
   Verify: Read the README out loud. Does it pass the
   no-prior-security-knowledge bar?
 
-- [ ] **17. End-to-end run against FIT3047 — win condition**
+- [x] **17. End-to-end run against FIT3047 — win condition**
   Spec ref: `prd.md > Project Context > Two audiences for v1` (the
   FIT3047 use case) and `learner-profile.md > Win condition`
   What to build: Start the FIT3047 CakePHP server locally. Run `python3
@@ -510,7 +510,7 @@
   without WebProbe? If yes — win condition not met; iterate. If no —
   save the screenshot for Devpost; this IS the wow moment.
 
-- [ ] **18. GitHub repo + Devpost submission**
+- [x] **18. GitHub repo + Devpost submission** _(Devpost dropped — coursework helper framing)_
   Spec ref: `prd.md > Project Context > Two audiences for v1`
   (open-source community framing) and `prd.md > What We're Building`
   What to build:

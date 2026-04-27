@@ -1,0 +1,78 @@
+══════════════════ FINDINGS ══════════════════
+
+[HIGH] Cookie 'csrfToken' missing Secure
+  URL:        https://u26s1157.iedev.org/team157-app_fit3047/users/login
+  Evidence:   no Secure attribute on cookie 'csrfToken'
+  Fix:        Mark cookie Secure on HTTPS to prevent plaintext transmission.
+  FIT3048:    Category 4
+
+[HIGH] Missing Strict-Transport-Security
+  URL:        https://u26s1157.iedev.org/team157-app_fit3047/users/login
+  Evidence:   header absent on response
+  Fix:        Add Strict-Transport-Security with at least max-age=31536000 on HTTPS.
+  FIT3048:    Category 5
+
+[MEDIUM] Missing Content-Security-Policy
+  URL:        https://u26s1157.iedev.org/team157-app_fit3047/users/login
+  Evidence:   header absent on response
+  Fix:        Add Content-Security-Policy header restricting allowed sources.
+  FIT3048:    Category 5
+
+[MEDIUM] Missing X-Frame-Options
+  URL:        https://u26s1157.iedev.org/team157-app_fit3047/users/login
+  Evidence:   header absent on response
+  Fix:        Set X-Frame-Options: DENY or SAMEORIGIN to prevent clickjacking.
+  FIT3048:    Category 5
+
+[MEDIUM] Exposed path: /cpanel
+  URL:        https://u26s1157.iedev.org/cpanel
+  POC:        https://u26s1157.iedev.org/cpanel
+  Evidence:   HTTP 301 on /cpanel
+  Fix:        Block public access to this path; remove the file or restrict via web-server config / .gitignore.
+  FIT3048:    Category 3
+
+[MEDIUM] Exposed path: /.htaccess
+  URL:        https://u26s1157.iedev.org/.htaccess
+  POC:        https://u26s1157.iedev.org/.htaccess
+  Evidence:   HTTP 403 on /.htaccess
+  Fix:        Block public access to this path; remove the file or restrict via web-server config / .gitignore.
+  FIT3048:    Category 3
+
+[MEDIUM] Exposed path: /.htpasswd
+  URL:        https://u26s1157.iedev.org/.htpasswd
+  POC:        https://u26s1157.iedev.org/.htpasswd
+  Evidence:   HTTP 403 on /.htpasswd
+  Fix:        Block public access to this path; remove the file or restrict via web-server config / .gitignore.
+  FIT3048:    Category 3
+
+[LOW] Cookie 'csrfToken' missing SameSite
+  URL:        https://u26s1157.iedev.org/team157-app_fit3047/users/login
+  Evidence:   no SameSite attribute on cookie 'csrfToken'
+  Fix:        Set SameSite=Strict or Lax to mitigate CSRF.
+  FIT3048:    Category 4
+
+[LOW] Missing X-Content-Type-Options
+  URL:        https://u26s1157.iedev.org/team157-app_fit3047/users/login
+  Evidence:   header absent on response
+  Fix:        Set X-Content-Type-Options: nosniff.
+  FIT3048:    Category 5
+
+[LOW] Missing Referrer-Policy
+  URL:        https://u26s1157.iedev.org/team157-app_fit3047/users/login
+  Evidence:   header absent on response
+  Fix:        Set Referrer-Policy to limit leaked URL info.
+  FIT3048:    Category 5
+
+[LOW] Server header disclosed
+  URL:        https://u26s1157.iedev.org/team157-app_fit3047/users/login
+  Evidence:   Server: Apache
+  Fix:        Suppress or generic-ize the Server header to avoid version disclosure.
+  FIT3048:    Category 3
+
+
+Target:    https://u26s1157.iedev.org/team157-app_fit3047/users/login
+Modules:   6 scheduled, 6 completed, 0 errored
+Findings:  11 (0 CRITICAL, 2 HIGH, 5 MEDIUM, 4 LOW, 0 INFO)
+Report:    webprobe_u26s1157.iedev.org_443_20260428_014210.html
+Duration:  11.8s
+
