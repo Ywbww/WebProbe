@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 import time
 import threading
+from datetime import datetime
 from typing import List, Optional, Tuple
 
 import requests
@@ -13,7 +14,8 @@ from webprobe.modules import MODULES
 from webprobe.modules.base import BaseModule
 from webprobe.session import make_session_factory
 from webprobe.target import discover_target
-from webprobe.output import colors, terminal
+from webprobe.output import colors, filename_for_target, terminal
+from webprobe.output.html import render_html
 
 VERSION = "1.0.0"
 DEFAULT_MODULE_SLUGS = {"sqli", "xss", "paths", "headers", "info-disclosure", "traversal"}
@@ -71,6 +73,7 @@ def build_active_modules(args) -> list[BaseModule]:
 def run(args) -> int:
     colors.init()
     started = time.time()
+    started_dt = datetime.now().astimezone()
 
     active_modules = build_active_modules(args)
     args.modules_scheduled = len(active_modules)
@@ -115,10 +118,18 @@ def run(args) -> int:
 
     duration = time.time() - started
     args.partial = bool(errored_modules) or ceiling_hit or degraded_any
-    args.report_filename = "webprobe_<host>_<port>_<ts>.html"
 
     print()
     print(terminal.render_findings_block(findings, errored_modules, args))
+
+    output_dir = getattr(args, "output", ".") or "."
+    html_path = filename_for_target(args.target_url, started_dt, output_dir, "html")
+    html_path.write_text(
+        render_html(findings, errored_modules, args, target, duration),
+        encoding="utf-8",
+    )
+    args.report_filename = html_path.name
+
     print()
     print(terminal.render_summary(findings, errored_modules, args, duration))
 
