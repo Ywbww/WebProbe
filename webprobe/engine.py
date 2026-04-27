@@ -16,6 +16,7 @@ from webprobe.session import make_session_factory
 from webprobe.target import discover_target
 from webprobe.output import colors, filename_for_target, terminal
 from webprobe.output.html import render_html
+from webprobe.output.txt import render_txt
 
 VERSION = "1.0.0"
 DEFAULT_MODULE_SLUGS = {"sqli", "xss", "paths", "headers", "info-disclosure", "traversal"}
@@ -129,6 +130,13 @@ def run(args) -> int:
         encoding="utf-8",
     )
     args.report_filename = html_path.name
+
+    # txt shares basename with html; collision suffix is inherited
+    txt_path = html_path.with_suffix(".txt")
+    txt_path.write_text(
+        render_txt(findings, errored_modules, args, target, duration),
+        encoding="utf-8",
+    )
 
     print()
     print(terminal.render_summary(findings, errored_modules, args, duration))

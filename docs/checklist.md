@@ -276,7 +276,7 @@
   info-disclosure, sqli]`; sqli runs (no findings on example.com because
   no forms/params; expected). Semantic validation deferred to item 17.
 
-- [ ] **10. xss module**
+- [x] **10. xss module**
   Spec ref: `spec.md > Detection Modules > xss`
   What to build: `webprobe/modules/xss.py`. `XssModule(BaseModule)` with
   `name = "xss"`, `category = "xss"`. The 6 v1 payloads exactly per spec.
@@ -294,7 +294,7 @@
   webprobe/probe.py http://example.com` — banner shows `[headers,
   info-disclosure, sqli, xss]`. Semantic validation deferred to item 17.
 
-- [ ] **11. traversal module + --include-traversal gating**
+- [x] **11. traversal module + --include-traversal gating**
   Spec ref: `spec.md > Detection Modules > traversal`
   What to build: `webprobe/modules/traversal.py`.
   `TraversalModule(BaseModule)` with `name = "traversal"`, `category =
@@ -317,7 +317,7 @@
   module runs (no findings expected on example.com). Run with
   `--cakephp` only — traversal still NOT in active modules.
 
-- [ ] **12. paths module + curated path list**
+- [x] **12. paths module + curated path list**
   Spec ref: `spec.md > Detection Modules > paths`, `spec.md > File
   Structure` (data layout), `spec.md > Concurrency Model > Per-Module
   Concurrency`
@@ -410,7 +410,7 @@
   insecure context, confirm the text-selection fallback fires (URL text
   highlights in-place, button reads "Selected — Ctrl+C").
 
-- [ ] **14. TXT output sink**
+- [x] **14. TXT output sink**
   Spec ref: `spec.md > Output Sinks > output/txt.py`
   What to build: `webprobe/output/txt.py`. `render_txt(findings,
   errored_modules, args, target, duration) -> str` returns the
