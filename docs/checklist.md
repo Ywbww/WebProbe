@@ -427,7 +427,7 @@
   base name. `cat webprobe_*.txt` shows the FINDINGS block + summary
   with no escape sequences (no `\x1b[`).
 
-- [ ] **15. profiles.py + --cakephp wiring**
+- [x] **15. profiles.py + --cakephp wiring**
   Spec ref: `spec.md > Framework Profiles`
   What to build: `webprobe/profiles.py`. `CAKEPHP_PATHS = [
   "/webroot/debug_kit/", "/debug-kit/", "/logs/", "/tmp/",
