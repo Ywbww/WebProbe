@@ -1,8 +1,9 @@
-"""SQLi module helpers: payloads, fingerprints, constants, request + detection logic."""
+"""SQLi module helpers: payloads, fingerprints, constants, detection logic."""
 from __future__ import annotations
 from urllib.parse import quote
 from requests.exceptions import RequestException
-from webprobe.findings import Finding, Target
+from webprobe.findings import Finding
+from webprobe.modules._common import build_units, send  # noqa: F401 (re-exported)
 
 PAYLOADS = ["'", '"', "1'", "1' OR '1'='1", "1' AND '1'='2", "1 AND 1=1", "1 AND 1=2"]
 DIFF_PAIRS = [("1' OR '1'='1", "1' AND '1'='2"), ("1 AND 1=1", "1 AND 1=2")]
@@ -17,21 +18,6 @@ DEGRADED_MSG = ("[!] Target appears degraded — 3 consecutive failures.\n"
 
 def mk(name, url, param, payload, ev, poc) -> Finding:
     return Finding("HIGH", "sqli", name, url, param, payload, ev, poc, REM, 5)
-
-
-def build_units(target: Target):
-    units = [(target.url, "GET", k, {}) for k in target.query_params]
-    for fm in target.forms:
-        for k in fm.fields:
-            units.append((fm.action, fm.method, k, {f: v for f, v in fm.fields.items() if f != k}))
-    return units
-
-
-def send(sess, url, method, param, payload, base):
-    d = {**base, param: payload}
-    if method.upper() == "POST":
-        return sess.post(url, data=d, timeout=5, allow_redirects=True)
-    return sess.get(url, params=d, timeout=5, allow_redirects=True)
 
 
 def detect_error(text_lower: str):
