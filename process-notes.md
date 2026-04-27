@@ -604,9 +604,9 @@ docs commit marking checklist progress at Checkpoint A.
   dynamic strings.
 
 **Item 17 — win condition met without a △1 loop-back.** Trump ran the
-scanner himself against the Team 157 FIT3047 CakePHP project at
-`https://u26s1157.iedev.org/team157-app_fit3047/users/login` (see
-`screenshots/webprobe_u26s1157.iedev.org_443_20260428_014210.html`).
+scanner himself against the my FIT3047 team FIT3047 CakePHP project at
+`https://your-project.local/users/login` (see
+`screenshots/webprobe_your-project.local_443_20260428_014210.html`).
 
 - 11 findings: 0 CRITICAL, 2 HIGH (csrfToken missing Secure; HSTS
   missing), 5 MEDIUM (CSP/X-Frame-Options missing; /cpanel,
@@ -617,7 +617,7 @@ scanner himself against the Team 157 FIT3047 CakePHP project at
   cPanel/Apache that Trump did not previously know were exposed. PRD
   win condition met.
 - sqli/xss producing zero findings was diagnosed as adequate defense
-  quality, not a calibration miss: the Team 157 stack uses CakePHP 5
+  quality, not a calibration miss: the my FIT3047 team stack uses CakePHP 5
   ORM (parameterised queries by default) + `h()` auto-escaping +
   FormHelper CSRF tokens. Detector silence on a defended login form is
   the detector telling the truth. Trump explicitly declined to lower
@@ -626,7 +626,7 @@ scanner himself against the Team 157 FIT3047 CakePHP project at
   spec carryover loop-back protocol was scoped to known-vulnerability
   cases.
 - The two HIGH findings (csrfToken Secure flag, HSTS) are genuinely
-  actionable items being routed to a Team 157 Iteration 2 backlog
+  actionable items being routed to a my FIT3047 team Iteration 2 backlog
   separate from this build. WebProbe produced security work, not just
   a screenshot.
 
@@ -671,7 +671,7 @@ scope reduction noted in the checklist body so /reflect can pick it up.
 
 **Carryover for /reflect:**
 
-- The Team 157 audit is a real artifact, not a demo. Two HIGH
+- The my FIT3047 team audit is a real artifact, not a demo. Two HIGH
   findings + three MEDIUM path exposures will inform Iteration 2
   remediation work.
 - The `python3 webprobe/probe.py <target>` UX — fixed by sys.path
