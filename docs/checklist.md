@@ -362,7 +362,7 @@
   re-run the audit before proceeding. Wait for explicit "go" before
   item 13.
 
-- [ ] **13. HTML output sink — filename helper + report rendering**
+- [x] **13. HTML output sink — filename helper + report rendering**
   Spec ref: `spec.md > Output Sinks > output/__init__.py`, `spec.md >
   Output Sinks > output/html.py`, `spec.md > Clipboard Fallback`
   What to build:
@@ -467,7 +467,7 @@
 
   Wait for explicit "go" before item 16.
 
-- [ ] **16. README with FIT3048 advertisement**
+- [x] **16. README with FIT3048 advertisement**
   Spec ref: `spec.md > Runtime & Deployment` and `prd.md > Epic 5 >
   "install one command"`
   What to build: Replace the stub `README.md`. Sections: project name +
