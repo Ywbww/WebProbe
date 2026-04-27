@@ -232,7 +232,7 @@
   FINDINGS block / summary all render correctly with right colors and
   marker conventions. Any visible bug here pauses Slice 2.
 
-- [ ] **8. info-disclosure module**
+- [x] **8. info-disclosure module**
   Spec ref: `spec.md > Detection Modules > info-disclosure`
   What to build: `webprobe/modules/info_disclosure.py`.
   `InfoDisclosureModule(BaseModule)` with `name = "info-disclosure"`,
@@ -252,7 +252,7 @@
   `[headers, info-disclosure]`; info-disclosure findings render inline
   with `[LOW]` / `[MEDIUM]` markers.
 
-- [ ] **9. sqli module**
+- [x] **9. sqli module**
   Spec ref: `spec.md > Detection Modules > sqli`
   What to build: `webprobe/modules/sqli.py`. `SqliModule(BaseModule)` with
   `name = "sqli"`, `category = "sqli"`. The 7 v1 payloads exactly: `'`,

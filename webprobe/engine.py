@@ -81,6 +81,7 @@ def run(args) -> int:
     errored_modules: List[Tuple[str, Exception]] = []
     stdout_lock = threading.Lock()
     ceiling_hit = False
+    degraded_any = False  # convention: a module signals degradation by setting self.degraded = True
 
     def report_finding(f: Finding) -> None:
         with stdout_lock:
@@ -104,9 +105,11 @@ def run(args) -> int:
             with stdout_lock:
                 print(f"[!] {module.name}: errored ({type(e).__name__}) — skipped")
             errored_modules.append((module.name, e))
+        if getattr(module, "degraded", False):
+            degraded_any = True
 
     duration = time.time() - started
-    args.partial = bool(errored_modules) or ceiling_hit
+    args.partial = bool(errored_modules) or ceiling_hit or degraded_any
     args.report_filename = "webprobe_<host>_<port>_<ts>.html"
 
     print()
