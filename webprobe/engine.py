@@ -59,7 +59,12 @@ def build_active_modules(args) -> list[BaseModule]:
     for cls in MODULES:
         if cls.name not in selected:
             continue
-        instances.append(cls())
+        if cls.name == "paths":
+            from webprobe.modules.paths import load_default_paths
+            instances.append(cls(path_list=load_default_paths()))
+            # NOTE: --cakephp merge lands at item 15
+        else:
+            instances.append(cls())
     return instances
 
 
