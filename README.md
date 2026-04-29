@@ -7,7 +7,7 @@ module under 50 lines.
 
 WebProbe is a CLI web vulnerability scanner built to make security
 testing easier for Monash students taking FIT3047 (Industry Experience)
-and FIT3048 (Web Application Security).
+and FIT3048 (Industry Experience 2).
 
 It produces:
 
