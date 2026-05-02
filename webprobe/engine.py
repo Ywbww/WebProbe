@@ -106,6 +106,36 @@ class Engine:
             scheduled.append(module_cls)
         self._scheduled_modules = scheduled
 
+    # --- Phase 2: user-flag module filtering ----------------------------
+    def _phase_2(self) -> None:
+        """Apply --include-modules / --exclude-modules. Risk gates NOT applied
+        yet; testbed unknown. Concrete body lives in `filter.py` (Item 14a)."""
+        self._scheduled_modules = list(
+            _filter.filter_modules_by_user_flags(self._scheduled_modules, self.args)
+        )
+
+    # --- Phase 3: connectivity check ------------------------------------
+    def _phase_3(self) -> None:
+        """Single GET against args.target_url; store as base_response on a
+        bare Target. Discovery (Phase 4, Item 10) replaces forms+urls."""
+        try:
+            resp = requests.get(
+                self.args.target_url,
+                timeout=10,
+                allow_redirects=True,
+            )
+        except requests.RequestException as exc:
+            print(f"[-] Target unreachable: {exc}", file=self._terminal_stream)
+            sys.exit(1)
+        self._target = Target(
+            url=self.args.target_url,
+            base_response=resp,
+            forms=[],
+            query_params={},
+            profile=None,
+            urls=(),
+        )
+
     # --- Pipeline entry --------------------------------------------------
     def run_pipeline(self) -> int:
         """Execute Phases 0.5 → 1 → 2 → 3. Subsequent phases (3.5/3.6/3.7/4/5/6/7)
@@ -117,7 +147,8 @@ class Engine:
             print(f"ERROR: {exc}", file=self._terminal_stream)
             sys.exit(2)
         self._phase_1()
-        # Phase 2/3 wired in Item 5c.
+        self._phase_2()
+        self._phase_3()
         return 0
 
     # --- report_finding wrapper -----------------------------------------
