@@ -3,7 +3,7 @@
 PRD ref: prd.md > Epic 1 > Stories 1.1, 1.2, 1.3, 1.4, 1.5.
 Spec ref: spec.md > Authentication & Session Setup (Epic 1).
 
-Concrete bodies for `setup_form_login` + 3 private helpers land at Item 6a.
+Concrete bodies for `setup_form_login` + 3 private helpers landed at Item 6a.
 The remaining helpers (`setup_cookie_session`, `setup_baseline`,
 `ephemeral_login_form`, `resolve_password`, `detect_shared_session`,
 `validate_auth_flags`) land at Item 6b.
@@ -16,15 +16,20 @@ unit-testable without integration test fixtures.
 """
 from __future__ import annotations
 
+import getpass
+import os
 import re
 import sys
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
+from http.cookies import SimpleCookie
 from typing import Optional
 from urllib.parse import urljoin
 
 import requests
 from requests import Response, Session
+
+from webprobe.findings import Finding
 
 
 # --- Custom Exception Hierarchy ------------------------------------------
@@ -299,8 +304,207 @@ def setup_form_login(
     return sess
 
 
-# --- Stub validators (concrete bodies land in Item 6b) -------------------
+# --- setup_cookie_session ------------------------------------------------
+
+def setup_cookie_session(cookie_string: str) -> Session:
+    """Story 1.2: parse RFC 6265 Cookie header form, attach to Session.
+
+    `cookie_string` is the same shape browsers send in the Cookie header:
+    `name=value; name2=value2; ...`. http.cookies.SimpleCookie covers the
+    common case; we strip leading whitespace per RFC 6265 §5.2.
+    """
+    sess = requests.Session()
+    if not cookie_string or not cookie_string.strip():
+        return sess
+    jar = SimpleCookie()
+    jar.load(cookie_string)
+    for name, morsel in jar.items():
+        sess.cookies.set(name, morsel.value)
+    return sess
+
+
+# --- resolve_password ----------------------------------------------------
+
+def resolve_password(
+    flag_value: Optional[str],
+    env_var_name: str,
+    prompt_text: str,
+) -> str:
+    """Story 1.5 priority chain: explicit flag -> env var -> getpass prompt.
+
+    Raises PasswordResolutionError on non-interactive TTY + no flag + no env.
+    `stream=sys.stderr` per getpass docs — keeps prompt off stdout (critical
+    for `--json-out -` mode).
+    """
+    if flag_value is not None:
+        return flag_value
+    env = os.environ.get(env_var_name)
+    if env is not None:
+        return env
+    if not sys.stdin.isatty():
+        raise PasswordResolutionError(
+            f"password resolution failed: no flag set, no {env_var_name} "
+            "env var, no TTY available; use --auth-pass or set the env var"
+        )
+    return getpass.getpass(prompt=prompt_text, stream=sys.stderr)
+
+
+# --- setup_baseline ------------------------------------------------------
+
+def setup_baseline(args, target_url: str) -> Optional[Session]:
+    """Story 1.3 multi-session contract. Owns inter-flag invariants:
+    --idor-baseline / --idor-baseline-form mutex; --idor-baseline-form
+    requires --idor-baseline-user. Raises ConfigurationError on violation.
+    """
+    idor_baseline = getattr(args, "idor_baseline", None)
+    idor_baseline_form = getattr(args, "idor_baseline_form", None)
+    idor_baseline_user = getattr(args, "idor_baseline_user", None)
+    idor_baseline_pass = getattr(args, "idor_baseline_pass", None)
+
+    if idor_baseline and idor_baseline_form:
+        raise ConfigurationError(
+            "--idor-baseline and --idor-baseline-form are mutually exclusive. "
+            "Pick cookie-based baseline (--idor-baseline) or form-based "
+            "baseline (--idor-baseline-form), not both."
+        )
+    if idor_baseline_form and not idor_baseline_user:
+        raise ConfigurationError(
+            "--idor-baseline-form requires --idor-baseline-user."
+        )
+    if idor_baseline:
+        return setup_cookie_session(idor_baseline)
+    if idor_baseline_form:
+        pw = resolve_password(
+            idor_baseline_pass,
+            "WEBPROBE_IDOR_BASELINE_PASS",
+            f"[Password for {idor_baseline_user}]: ",
+        )
+        return setup_form_login(
+            target_url, idor_baseline_form, idor_baseline_user, pw
+        )
+    return None
+
+
+# --- ephemeral_login_form ------------------------------------------------
+
+def ephemeral_login_form(
+    target_url: str,
+    login_url: str,
+    user: str,
+    password: str,
+) -> Session:
+    """Story 1.4: build a one-shot disposable Session via fresh form-login.
+
+    Used by Story 7.5's session module for post-logout cookie-replay test.
+    Returned Session is independent of primary/baseline list — destruction
+    by logout does not affect sessions[0] or sessions[1]. Caller is
+    responsible for using-then-discarding; engine never stores ephemeral
+    Sessions.
+
+    Side effect to document in README per Story 7.5: throwaway session is
+    +1 login event in target's auth log.
+    """
+    return setup_form_login(target_url, login_url, user, password, verbose=False)
+
+
+# --- detect_shared_session -----------------------------------------------
+
+# Story 1.3.E1: module-private constant. NOT user-configurable via CLI flag —
+# detection heuristic must be predictable. User-configurable list is
+# Sprint 3+ candidate. Append at /build if Team 157 testbed shape uses an
+# unusual session cookie name.
+_SHARED_SESSION_COOKIE_NAMES: frozenset[str] = frozenset({
+    "PHPSESSID",
+    "laravel_session",
+    "_session_id",
+    "connect.sid",
+    "JSESSIONID",
+    "ci_session",
+    "sessionid",
+    "ASP.NET_SessionId",
+    "session",
+    "_session",
+    "CAKEPHP",
+})
+
+
+def detect_shared_session(sessions: list[Session]) -> Optional[Finding]:
+    """Story 1.3.E1: cookie equality check across sessions.
+
+    Returns INFO Finding if two sessions share the same value for any
+    well-known session cookie name (suggests baseline session and primary
+    session both authenticated as the same user — multi-session IDOR
+    cross-checks would yield false negatives). None if no overlap.
+    """
+    if len(sessions) < 2:
+        return None
+    # Compare sessions pairwise. With sessions[0] (primary) and sessions[1]
+    # (baseline) being the only expected shape today, this is O(1) in
+    # practice; loop kept generic.
+    for i in range(len(sessions)):
+        for j in range(i + 1, len(sessions)):
+            shared = _shared_named_cookies(sessions[i], sessions[j])
+            if shared:
+                names = ", ".join(sorted(shared))
+                return Finding(
+                    severity="INFO",
+                    category="auth",
+                    finding_type="shared_session_detected",
+                    name="Primary and baseline sessions share a session cookie",
+                    url="(local)",
+                    evidence=(
+                        f"Sessions {i} and {j} share identical session cookie "
+                        f"value(s) for: {names}. The baseline credential may "
+                        "have authenticated as the same user as the primary "
+                        "credential, defeating multi-session IDOR cross-checks."
+                    ),
+                    remediation=(
+                        "Verify --idor-baseline / --idor-baseline-form points "
+                        "at a distinct user account from the primary --auth-* "
+                        "credentials."
+                    ),
+                )
+    return None
+
+
+def _shared_named_cookies(a: Session, b: Session) -> set[str]:
+    """Return the set of well-known session cookie names where `a` and `b`
+    have the same value. Pure helper over Session.cookies."""
+    a_cookies = {c.name: c.value for c in a.cookies if c.name in _SHARED_SESSION_COOKIE_NAMES}
+    b_cookies = {c.name: c.value for c in b.cookies if c.name in _SHARED_SESSION_COOKIE_NAMES}
+    return {
+        name for name, val in a_cookies.items()
+        if name in b_cookies and b_cookies[name] == val
+    }
+
+
+# --- validate_auth_flags -------------------------------------------------
 
 def validate_auth_flags(args) -> None:
-    """Phase 0.5 inter-flag validator. Concrete body lands at Item 6b."""
-    return None
+    """Phase 0.5 inter-flag validator. Raises ConfigurationError on conflict.
+
+    Invariants:
+      - mutex: --cookie / --auth-form
+      - required-with: --auth-form needs --auth-user
+      - password chain feasibility (delegated to resolve_password at
+        Phase 5a — we don't pre-resolve here since resolve_password may
+        prompt a TTY and Phase 0.5 must stay non-interactive).
+
+    --idor-baseline / --idor-baseline-form mutex lives in setup_baseline()
+    per spec (Phase 5c); we do NOT duplicate it here so failure surfaces
+    at the consuming phase.
+    """
+    cookie = getattr(args, "cookie", None)
+    auth_form = getattr(args, "auth_form", None)
+    auth_user = getattr(args, "auth_user", None)
+
+    if cookie and auth_form:
+        raise ConfigurationError(
+            "--cookie and --auth-form are mutually exclusive. Pick "
+            "cookie-based auth (--cookie) or form-based auth (--auth-form), "
+            "not both."
+        )
+    if auth_form and not auth_user:
+        raise ConfigurationError(
+            "--auth-form requires --auth-user."
+        )
