@@ -11,6 +11,16 @@ Frozen by convention after Phase 7. Phase 8 (render) MUST NOT mutate.
 from dataclasses import dataclass, field
 from typing import Optional
 
+# Mode invariant lock (Story 3.4 / Item 14b alignment). The four exact
+# strings the engine emits into ScanCoverage.mode. Renderers and JSON
+# consumers may match against this tuple directly.
+MODE_VALUES: tuple[str, ...] = (
+    "Unauthenticated",
+    "Authenticated, single-session",
+    "Authenticated, dual-session",
+    "Cookie-session",
+)
+
 
 @dataclass
 class LoginProbeResult:

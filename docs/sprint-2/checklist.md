@@ -727,7 +727,7 @@ realistic ~22.2 hr, aligns to original Sprint 1 1.5x estimate.
   ```
   Estimated time: 30 min
 
-- [ ] **14. `filter.py` (module filtering + risk gates + testbed detection + i-own-this-target validation + banner)** — MUST SPLIT (14a validate_module_flags + parse_module_list + Levenshtein, 14b detect_testbed + filter_modules_by_risk_gates + render_risk_gate_banner + validate_i_own_this_target)
+- [x] **14. `filter.py` (module filtering + risk gates + testbed detection + i-own-this-target validation + banner)** — MUST SPLIT (14a validate_module_flags + parse_module_list + Levenshtein, 14b detect_testbed + filter_modules_by_risk_gates + render_risk_gate_banner + validate_i_own_this_target)
   Spec ref: `spec.md > Filtering & Risk Gates (Epic 4+5)` + `prd.md >
   Epic 4 + Epic 5`
   What to build: `webprobe/filter.py` per spec. `validate_module_flags`

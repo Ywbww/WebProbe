@@ -73,6 +73,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--include-brute-force", dest="include_brute_force",
                    action="store_true",
                    help="Opt in to brute_force module (gated).")
+    p.add_argument("--include-traversal", dest="include_traversal",
+                   action="store_true",
+                   help="Opt in to the v1 traversal module.")
 
     # --- Discovery flags (Epic 2 / Phase 4) ---
     p.add_argument("--use-sitemap", dest="use_sitemap", action="store_true")

@@ -5,13 +5,17 @@ Spec ref: spec.md > Filtering & Risk Gates (Epic 4+5),
 Phase 0.5 Inter-Flag Validation, Engine Phase Ordering
 (Phases 2 / 3.5 / 3.6 / 3.7).
 
-Item 14a (this commit): validate_module_flags + parse_module_list +
-Levenshtein + filter_modules_by_user_flags. Item 14b lands testbed
-detection, risk-gate filtering + banner, and validate_i_own_this_target.
+Item 14a: validate_module_flags + parse_module_list + Levenshtein +
+filter_modules_by_user_flags.
+Item 14b (this commit): detect_testbed (+ _matches_testbed_url_pattern),
+filter_modules_by_risk_gates, render_risk_gate_banner,
+validate_i_own_this_target.
 """
 from __future__ import annotations
 
+import json as _json
 from typing import Iterable, Optional
+from urllib.parse import urljoin, urlparse
 
 from webprobe.auth import ConfigurationError
 from webprobe.registry import all_module_names
@@ -184,9 +188,65 @@ def validate_module_flags(args) -> None:
 def validate_i_own_this_target(args) -> None:
     """Phase 0.5 hostname-binding validator (Story 5.5).
 
-    Stub at Item 14a; Item 14b lands the full validator.
+    Edge case lock (spec): reject URL path/query in assertion shape so a
+    copy-pasted ``https://host/admin`` doesn't silently get truncated to
+    its hostname. Hostname comparison is case-insensitive. Port is
+    port-agnostic when omitted from the flag, but must match when given.
+
+    No-op when ``args.i_own_this_target`` is None. Raises
+    ``ConfigurationError`` on violation.
     """
-    return None
+    asserted = getattr(args, "i_own_this_target", None)
+    if asserted is None:
+        return
+
+    # Reject URL path/query/fragment before semantic validation.
+    if "://" in asserted:
+        parsed = urlparse(asserted)
+        if parsed.path not in ("", "/") or parsed.query or parsed.fragment:
+            raise ConfigurationError(
+                f"--i-own-this-target value '{asserted}' contains URL "
+                f"path/query. Assertion must be hostname or hostname:port "
+                f"only. Try '--i-own-this-target={parsed.hostname}'."
+            )
+        asserted_parsed = parsed
+    else:
+        if "/" in asserted or "?" in asserted:
+            raise ConfigurationError(
+                f"--i-own-this-target value '{asserted}' contains URL "
+                f"path/query. Assertion must be hostname or hostname:port "
+                f"only."
+            )
+        asserted_parsed = urlparse(f"//{asserted}")
+
+    target_url = getattr(args, "target_url", None)
+    if not target_url:
+        raise ConfigurationError(
+            "--i-own-this-target requires a target URL to validate against."
+        )
+    target_parsed = urlparse(target_url)
+    if target_parsed.hostname is None or asserted_parsed.hostname is None:
+        raise ConfigurationError(
+            "unable to parse hostname from target or --i-own-this-target."
+        )
+
+    if target_parsed.hostname.lower() != asserted_parsed.hostname.lower():
+        raise ConfigurationError(
+            f"--i-own-this-target asserts ownership of "
+            f"'{asserted_parsed.hostname}' but scan target is "
+            f"'{target_parsed.hostname}'. The assertion must match the "
+            f"target hostname; this prevents wrapper scripts from auto-"
+            f"asserting ownership across changing targets."
+        )
+
+    if (asserted_parsed.port is not None
+            and target_parsed.port != asserted_parsed.port):
+        raise ConfigurationError(
+            f"--i-own-this-target port {asserted_parsed.port} does not "
+            f"match target port {target_parsed.port}. Either omit the "
+            f"port from the assertion (match any port on this hostname) "
+            f"or specify the target's exact port."
+        )
 
 
 # --- Phase 2: user-flag module filtering --------------------------------
@@ -209,19 +269,89 @@ def filter_modules_by_user_flags(modules: Iterable[type], args) -> list[type]:
     return mods
 
 
-# --- Phase 3.5/3.6/3.7 placeholders (filled at Item 14b) ----------------
+# --- Phase 3.5: testbed detection ---------------------------------------
+
+def _matches_testbed_url_pattern(target_url: str) -> bool:
+    """Deterministic netloc check (NOT fuzzy heuristic). Used as a fast
+    pre-flight before the HTTP probe, and as the signal for the
+    "testbed-shaped target without health endpoint" hint banner."""
+    parsed = urlparse(target_url)
+    return parsed.netloc in {"localhost:9999", "127.0.0.1:9999"}
+
 
 def detect_testbed(args, target) -> bool:
-    """Phase 3.5 testbed detection. Item 14b lands the full body."""
-    return False
+    """Story 5.4.E1: probe ``/__webprobe_testbed__/health``, validate the
+    response shape. Returns True only on full match. Single attempt, no
+    retry; any exception → False.
 
+    The probe URL derives from ``target.url`` when available (engine
+    Phase 3 has populated it) or falls back to ``args.target_url``.
+    """
+    target_url = getattr(args, "target_url", None)
+    if target is not None and getattr(target, "url", None):
+        target_url = target.url
+    if not target_url:
+        return False
+
+    probe_url = urljoin(target_url, "/__webprobe_testbed__/health")
+    headers = {"User-Agent": "webprobe/2.0 (testbed-detection)"}
+    try:
+        import requests
+        resp = requests.get(probe_url, headers=headers, timeout=5)
+    except Exception:
+        return False
+    if resp.status_code != 200:
+        return False
+    if "application/json" not in resp.headers.get("Content-Type", ""):
+        return False
+    try:
+        body = resp.json()
+    except (ValueError, _json.JSONDecodeError):
+        return False
+    return body.get("webprobe_testbed") is True
+
+
+# --- Phase 3.6: risk-gate filtering -------------------------------------
 
 def filter_modules_by_risk_gates(
     modules: Iterable[type], args, is_testbed: bool
 ) -> tuple[list[type], list[tuple[type, str]]]:
-    """Phase 3.6 risk-gate filter. Item 14b lands the full body."""
-    return list(modules), []
+    """Story 5.1 / 5.2 / 5.4 — apply per-module risk-gate flags.
 
+    Testbed bypass returns ``(modules, [])`` — gates skipped entirely.
+    Otherwise drops gated modules whose flags aren't set, returning
+    ``(kept, [(cls, reason), ...])`` for the banner.
+    """
+    mods = list(modules)
+    if is_testbed:
+        return mods, []
+
+    has_iott = bool(getattr(args, "i_own_this_target", None))
+    has_brute = bool(getattr(args, "include_brute_force", False))
+
+    kept: list[type] = []
+    dropped: list[tuple[type, str]] = []
+    for cls in mods:
+        name = getattr(cls, "name", None)
+        if name in _GATED_DOUBLE:
+            if has_brute and has_iott:
+                kept.append(cls)
+            else:
+                dropped.append((
+                    cls,
+                    "requires --include-brute-force AND --i-own-this-target",
+                ))
+        elif name in _GATED_SINGLE:
+            if has_iott:
+                kept.append(cls)
+            else:
+                dropped.append((cls, "requires --i-own-this-target"))
+        else:
+            kept.append(cls)
+    return kept, dropped
+
+
+# --- Phase 3.7: risk-gate banner ----------------------------------------
 
 def render_risk_gate_banner(
     dropped: list[tuple[type, str]],
@@ -229,5 +359,29 @@ def render_risk_gate_banner(
     is_testbed: bool,
     all_excluded: bool,
 ) -> str:
-    """Phase 3.7 banner. Item 14b lands the full body."""
-    return ""
+    """Story 5.3 — box-drawn banner listing risk-gated modules dropped.
+
+    Suppressed when ``is_testbed`` (gates were bypassed) or when every
+    gated module was already excluded by ``--exclude-modules`` (so
+    dropping wasn't user-visible). Returns ``""`` in either case.
+
+    Renders to the engine's terminal stream only (NOT to HTML/TXT/JSON
+    sinks — Story 5.3 explicitly scopes the banner to the live console).
+    """
+    if is_testbed:
+        return ""
+    if all_excluded:
+        return ""
+    if not dropped:
+        return ""
+
+    bar = "═" * 60
+    lines = [
+        bar,
+        "Risk-gated modules disabled (default OFF for non-testbed targets):",
+    ]
+    for cls, reason in dropped:
+        name = getattr(cls, "name", getattr(cls, "__name__", "?"))
+        lines.append(f"  {name:<16} {reason}")
+    lines.append(bar)
+    return "\n".join(lines)

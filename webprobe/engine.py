@@ -174,14 +174,26 @@ class Engine:
     # --- Phase 3.7: risk-gate banner ------------------------------------
     def _phase_3_7(self) -> None:
         """Banner emission per Story 5.3. Skipped when nothing was dropped,
-        when running against testbed (gates bypassed), or when all modules
-        were dropped (we leave that case to Phase 4+'s no-op-handling).
+        when running against testbed (gates bypassed), or when every
+        gated module was ALSO explicitly excluded via --exclude-modules
+        (so the drop was user-anticipated and bannering would be noise).
         """
         if not self._dropped_by_risk_gate:
             return
         if self._is_testbed:
             return
-        all_excluded = not self._scheduled_modules
+        # all_excluded: every risk-gate-dropped module is also in the
+        # user's --exclude-modules set. (Spec wording: "ALL risk-gated
+        # modules are explicitly excluded via --exclude-modules.")
+        excluded_raw = getattr(self.args, "exclude_modules", None)
+        excluded_set: set[str] = set()
+        if excluded_raw:
+            from webprobe.filter import parse_module_list
+            excluded_set = set(parse_module_list(excluded_raw))
+        dropped_names = {
+            getattr(cls, "name", "") for cls, _r in self._dropped_by_risk_gate
+        }
+        all_excluded = bool(dropped_names) and dropped_names.issubset(excluded_set)
         if all_excluded:
             return
         banner = _filter.render_risk_gate_banner(
@@ -543,18 +555,27 @@ class Engine:
 
     def _build_scan_coverage(self, elapsed: float) -> ScanCoverage:
         """Construct the Story 3.4 ScanCoverage block from engine state."""
-        # Mode resolution (4 enum values per spec):
-        #   "unauth" / "authed" / "scan-both" / "baseline"
-        if getattr(self.args, "scan_both", False):
-            mode = "scan-both"
-        elif getattr(self.args, "auth_form", None) or getattr(self.args, "cookie", None):
-            if (getattr(self.args, "idor_baseline", None)
-                    or getattr(self.args, "idor_baseline_form", None)):
-                mode = "baseline"
-            else:
-                mode = "authed"
+        # Mode resolution (4 enum values per Mode invariant lock).
+        # Item 14b aligns runtime to the spec-locked vocabulary:
+        #   "Unauthenticated" / "Cookie-session" /
+        #   "Authenticated, single-session" / "Authenticated, dual-session"
+        from webprobe.coverage import MODE_VALUES
+        auth_form = getattr(self.args, "auth_form", None)
+        cookie = getattr(self.args, "cookie", None)
+        has_baseline = bool(
+            getattr(self.args, "idor_baseline", None)
+            or getattr(self.args, "idor_baseline_form", None)
+        )
+        n_sessions = len(self._sessions)
+        if auth_form is None and cookie is None:
+            mode = "Unauthenticated"
+        elif cookie is not None and not has_baseline:
+            mode = "Cookie-session"
+        elif n_sessions >= 2 or has_baseline:
+            mode = "Authenticated, dual-session"
         else:
-            mode = "unauth"
+            mode = "Authenticated, single-session"
+        assert mode in MODE_VALUES, f"mode {mode!r} not in MODE_VALUES"
 
         # Sessions list: identifiers of primary + baseline (when present).
         sessions: list[str] = []
