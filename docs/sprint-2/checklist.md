@@ -604,7 +604,7 @@ realistic ~22.2 hr, aligns to original Sprint 1 1.5x estimate.
   ```
   Estimated time: 45 min (MUST SPLIT into 10a/10b)
 
-- [ ] **11. `terminal.py` output (banner + COVERAGE block + FINDINGS + summary + inline tease)** — MUST SPLIT (11a banner + COVERAGE block + inline tease, 11b FINDINGS + summary)
+- [x] **11. `terminal.py` output (banner + COVERAGE block + FINDINGS + summary + inline tease)** — MUST SPLIT (11a banner + COVERAGE block + inline tease, 11b FINDINGS + summary)
   Spec ref: `spec.md > Output (Epic 3) > ScanCoverage` + `prd.md > Epic 3
   > Stories 3.1/3.2/3.5`
   What to build: `webprobe/output/terminal.py` upgrade per spec.
@@ -642,7 +642,7 @@ realistic ~22.2 hr, aligns to original Sprint 1 1.5x estimate.
   ```
   Estimated time: 45 min (MUST SPLIT into 11a/11b)
 
-- [ ] **12. `html.py` output (auth-context badge + IDOR conditional + OPERATIONAL_RISK chip + FIT3048 grouping)** — MUST SPLIT (12a structure + auth-badge + IDOR conditional, 12b OPERATIONAL_RISK chip + FIT3048 two-level grouping + Sprint 1 clipboard preservation)
+- [x] **12. `html.py` output (auth-context badge + IDOR conditional + OPERATIONAL_RISK chip + FIT3048 grouping)** — MUST SPLIT (12a structure + auth-badge + IDOR conditional, 12b OPERATIONAL_RISK chip + FIT3048 two-level grouping + Sprint 1 clipboard preservation)
   Spec ref: `spec.md > Output > HTML report v2 structure` + `prd.md > Epic
   3 > Story 3.3`
   What to build: `webprobe/output/html.py` upgrade per spec. `<article>` +
