@@ -217,6 +217,124 @@ def render_scan_coverage(coverage) -> str:
 # v2 — Inline tease (carries optional stream for --json-out - routing)
 # ---------------------------------------------------------------------------
 
+def render_findings(findings, args) -> str:
+    """v2 FINDINGS block per Story 3.2.
+
+    Severity grouping default (CRITICAL → HIGH → MEDIUM → LOW → INFO),
+    then category within severity. Count line ALWAYS includes zeros
+    (`[CRITICAL × 0]` not omitted). Per-finding multi-line block with
+    Probed/Baseline/Sessions lines only when their source field is set.
+
+    Lock (Phase 1): the IDOR-conditional render expression
+    `category == "idor"` lives in EXACTLY 2 places under
+    webprobe/output/ — this function and html.py.
+    """
+    header = "═" * 15 + " FINDINGS " + "═" * 15
+    lines: list[str] = [header]
+
+    # Count line — zeros included
+    counts = {s: 0 for s in SEVERITY_ORDER}
+    for f in findings:
+        counts[f.severity] += 1
+    count_line = " ".join(f"[{s} × {counts[s]}]" for s in SEVERITY_ORDER)
+    lines.append(count_line)
+    lines.append("")
+
+    if not findings:
+        lines.append("(no findings)")
+        return "\n".join(lines) + "\n"
+
+    colored = should_color(args)
+    sorted_findings = sorted(
+        findings, key=lambda f: (SEVERITY_ORDER.index(f.severity), f.category)
+    )
+
+    for f in sorted_findings:
+        lines.append(f"{_tag(f.severity, colored)} {f.name}")
+        lines.append(f"     URL:        {f.url}")
+        # Wrap evidence at ~70 cols
+        ev = f.evidence or ""
+        wrapped = textwrap.wrap(ev, width=70) or [""]
+        lines.append(f"     Evidence:   {wrapped[0]}")
+        for cont in wrapped[1:]:
+            lines.append(f"                 {cont}")
+        if f.auth_context is not None:
+            lines.append(f"     Probed:     {f.auth_context}")
+        if f.baseline_context is not None:
+            lines.append(f"     Baseline:   {f.baseline_context}")
+        # IDOR-conditional Sessions line — single source of truth (terminal half).
+        # See html.py for the matching expression. Phase 1 lock: grep verifies
+        # this string appears in EXACTLY 2 places under webprobe/output/.
+        if f.category == "idor" and f.baseline_context is not None:
+            sessions_summary = _idor_sessions_line(f)
+            if sessions_summary:
+                lines.append(f"     Sessions:   {sessions_summary}")
+        lines.append(f"     Fix:        {f.remediation}")
+        if f.fit3048_category is not None:
+            lines.append(f"     FIT3048:    Category {f.fit3048_category}")
+        lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _idor_sessions_line(f) -> str:
+    """Render the Sessions: line for IDOR findings (8-char hash truncation).
+
+    seen_in is a list of session-attribution labels; we surface them with
+    the evidence_hash for the Sprint 2 lock display. Best-effort — when
+    the module did not pre-format a sessions string, fall back to a
+    summary derived from auth_context / baseline_context.
+    """
+    seen = list(getattr(f, "seen_in", []) or [])
+    short_hash = (f.evidence_hash or "")[:8]
+    if seen:
+        return f"{', '.join(seen)} (sha256={short_hash})"
+    return f"sha256={short_hash}"
+
+
+def render_run_summary(metadata, sink_paths) -> str:
+    """v2 run-end summary per Story 3.5.
+
+    `metadata`: ScanMetadata. `sink_paths`: dict with keys 'html', 'txt',
+    'json' — render only the keys present. `--json-out -` mode passes
+    `{'json': '<stdout>'}`.
+    """
+    counts = {s: 0 for s in SEVERITY_ORDER}
+    findings = getattr(metadata, "findings", None) or []
+    for f in findings:
+        counts[f.severity] += 1
+    total = sum(counts.values())
+
+    mods_scheduled = getattr(metadata, "modules_scheduled", None)
+    mods_completed = getattr(metadata, "modules_completed", None)
+    mods_errored = len(getattr(metadata, "errored_modules", []) or [])
+
+    lines: list[str] = [f"Target:    {metadata.target}"]
+
+    if mods_scheduled is not None:
+        lines.append(
+            f"Modules:   {mods_scheduled} scheduled, "
+            f"{mods_completed if mods_completed is not None else mods_scheduled - mods_errored} completed, "
+            f"{mods_errored} errored"
+        )
+
+    findings_line = (
+        f"Findings:  {total} ({counts['CRITICAL']} CRIT, {counts['HIGH']} HIGH, "
+        f"{counts['MEDIUM']} MED, {counts['LOW']} LOW, {counts['INFO']} INFO)"
+    )
+    lines.append(findings_line)
+
+    if sink_paths:
+        lines.append("Reports written:")
+        for key in ("html", "txt", "json"):
+            if key in sink_paths and sink_paths[key]:
+                label = key.upper().ljust(4)
+                lines.append(f"  {label}: {sink_paths[key]}")
+
+    lines.append(f"Duration:  {metadata.duration_seconds:.1f}s")
+    return "\n".join(lines) + "\n"
+
+
 def render_inline_tease(finding, args, stream: Optional[TextIO] = None) -> None:
     """Live "[SEVERITY] <name> — <url>" feedback during Phase 6.
 
