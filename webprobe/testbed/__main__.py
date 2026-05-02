@@ -234,9 +234,14 @@ def login():
     return redirect("/", code=302)
 
 
-# --- POST /login-locked : per-source-IP lockout target ------------------
-@app.route("/login-locked", methods=["POST"])
+# --- GET/POST /login-locked : per-source-IP lockout target --------------
+@app.route("/login-locked", methods=["GET", "POST"])
 def login_locked():
+    if request.method == "GET":
+        # Login form so setup_form_login (Phase 5b) can do its initial GET
+        # discovery before the brute_force module begins POSTing wrong
+        # passwords. Body shape mirrors /login.
+        return _LOGIN_FORM_HTML.replace('action="/login"', 'action="/login-locked"')
     src = request.remote_addr or "unknown"
     attempts = _LOCKED_ATTEMPTS.get(src, 0) + 1
     _LOCKED_ATTEMPTS[src] = attempts

@@ -898,7 +898,7 @@ realistic ~22.2 hr, aligns to original Sprint 1 1.5x estimate.
   ```
   Estimated time: 45 min (MUST SPLIT into 18a/18b)
 
-- [ ] **19. `brute_force` module — P1 CUT TARGET**
+- [x] **19. `brute_force` module — P1 CUT TARGET**
   Spec ref: `spec.md > brute_force.py` + `prd.md > Epic 7 > Story 7.6`
   What to build: `webprobe/modules/brute_force.py` per spec. `@register`,
   `FIT3048_CATEGORY_MAP={"no_lockout": 7, "weak_lockout": 7}`,

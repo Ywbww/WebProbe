@@ -1,0 +1,10 @@
+Account temporarily locked
+too many failed attempts
+Account locked
+Login attempts exceeded
+Please try again later
+Account suspended
+锁定
+账号锁定
+アカウントがロック
+ログイン試行回数
