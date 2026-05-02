@@ -2007,3 +2007,34 @@ Re-verification (post-fix):
 
 **Lesson for /reflect:** "Phase boundary = HTTP capability boundary" should be a Module Contract lock, not just an emergent property. Phase 0.5 (no HTTP), Phase 3 (connectivity required), Phase 3.5+ (testbed-aware) is a layered capability cake — putting validation in the wrong layer creates impossible logic gates. Add to spec.md Module-Body Invariants as a documented invariant.
 
+### Named pattern (Sprint 2 — surfaced at Checkpoint C, 9th+ named pattern of Sprint 2)
+
+**phase-boundary-as-capability-boundary**
+
+Engine phase ordering is not just a sequencing decision — it's a capability-boundary decision. Each phase has an implicit capability budget:
+
+| Phase   | Capability budget                                                                                                                  |
+|---------|------------------------------------------------------------------------------------------------------------------------------------|
+| 0 / 0.5 | argparse + flag-shape coherence. **NO HTTP, NO file I/O, NO subprocess, NO state derivation requiring runtime probing.**           |
+| 1       | module enumeration + class-attr validation. **NO HTTP**; file I/O OK for DATA_FILES auto-load via `importlib.resources`.           |
+| 2       | user-flag module filtering. **No new capabilities**; works on Phase 1 enumeration result.                                          |
+| 3       | target connectivity probe. **HTTP allowed for the first time** (single GET → `target.base_response`).                              |
+| 3.5     | testbed detection. **HTTP + caches result on engine state** (`self._is_testbed`).                                                  |
+| 3.6     | risk-gate filtering. **Uses Phase 3.5 cached testbed status, NO new HTTP.**                                                        |
+| 3.7     | risk-gate banner emission. **Terminal stream write, no HTTP.**                                                                     |
+| 4       | URL pool resolution. **HTTP allowed for sitemap/robots discovery**; cap-hit / wildcard-intent INFO findings appended.              |
+| 5       | auth setup. **HTTP allowed for login/baseline/session-check probes.**                                                              |
+| 6       | module dispatch. **HTTP allowed via `_common.send` per module body**; one closure-captured `report_finding` per (module, pass).    |
+| 7       | dedup + render + sink writes. **No HTTP**; output only.                                                                            |
+
+**Validations must be placed in the phase whose capability budget can satisfy them.** Phase 0.5 trying to do gated-include validation requiring HTTP-derived testbed knowledge — impossible at Phase 0.5 — is what surfaced as the Item 14 risk-gate bug at Checkpoint C.
+
+**Build agent mechanical check:** before placing any validation, ask "this validation requires capability X — is X in this phase's budget?" If not, defer to the earliest phase whose budget admits it.
+
+**Sprint 3 implications:**
+- /spec phase-ordering documentation should explicit-list each phase's capability budget (table above is the canonical source).
+- Sprint 3 may choose to promote to PRD invariant: **"Engine phases declare capability budgets; validations placed by capability fit."**
+- The lock is testable by inspection: walk each phase's body and confirm only listed capabilities are exercised.
+
+This is the 9th+ named architectural pattern of Sprint 2. Earlier ones (from /scope, /prd, /spec, /checklist phases): renumbering-robust commits, atomic-acceptance commit boundary, MUST SPLIT ≤30min cap, testbed-shape-mimics-target-not-implementation (cross-cutting γ), checkpoint dual-role (Checkpoint B integration + hour budget), 3-tier acceptance fallback, /scope amendment vs drift, integration-before-presentation, helper extraction reactive (50-line cap trigger). Add this one at /reflect.
+
