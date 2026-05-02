@@ -693,7 +693,7 @@ realistic ~22.2 hr, aligns to original Sprint 1 1.5x estimate.
   ```
   Estimated time: 60 min (MUST SPLIT into 12a/12b)
 
-- [ ] **13. `txt.py` + `json_render.py` + remove debug-print from Item 9**
+- [x] **13. `txt.py` + `json_render.py` + remove debug-print from Item 9**
   Spec ref: `spec.md > Output > JSON envelope — Story 3.4` + Phase 1 Q1
   debug-print removal
   What to build: `webprobe/output/txt.py` ANSI-stripped variant of
