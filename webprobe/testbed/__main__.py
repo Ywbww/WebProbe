@@ -12,10 +12,57 @@ Run with: `python3 -m webprobe.testbed` (binds 127.0.0.1:9999).
 """
 from __future__ import annotations
 
-from flask import Flask, jsonify, make_response, redirect, request
+import secrets
+
+from flask import Flask, jsonify, make_response, redirect, request, session
+from flask.sessions import SessionInterface, SessionMixin
 
 app = Flask(__name__)
 app.secret_key = "webprobe-testbed-not-for-production"
+
+
+# --- Custom SessionInterface (Gap 5 (i) lock) ---------------------------
+# Single SessionInterface implementation closes 3 module fixtures:
+#   1. session.session_fixation        — sid stable across login transition
+#   2. headers.cookie_no_httponly      — cookie set without HttpOnly
+#   3. auth.detect_shared_session      — PHPSESSID is in the frozenset
+# Replicated verbatim per Item 8b spec block.
+
+_TESTBED_SESSIONS: dict[str, dict] = {}
+
+
+class FixationVulnerableSession(dict, SessionMixin):
+    def __init__(self, sid: str, initial: dict = None):
+        super().__init__(initial or {})
+        self.sid = sid
+        self.modified = False
+
+
+class FixationVulnerableSessionInterface(SessionInterface):
+    """Deliberately broken: does NOT regenerate session ID on login.
+    Real-world equivalent: server-side session store where the developer
+    forgets to rotate the session ID across an auth state transition."""
+
+    def open_session(self, app, request):
+        sid = request.cookies.get("PHPSESSID")
+        if sid is None or sid not in _TESTBED_SESSIONS:
+            sid = secrets.token_urlsafe(16)
+            _TESTBED_SESSIONS[sid] = {}
+        return FixationVulnerableSession(sid, _TESTBED_SESSIONS[sid])
+
+    def save_session(self, app, session, response):
+        if session.modified:
+            _TESTBED_SESSIONS[session.sid] = dict(session)
+        # Always set cookie to current sid — does NOT rotate on login (deliberate flaw).
+        response.set_cookie("PHPSESSID", session.sid, httponly=False)
+
+
+app.session_interface = FixationVulnerableSessionInterface()
+
+
+# --- Login state (per-source-IP for /login-locked) ----------------------
+KNOWN_USERS: set[str] = {"admin", "alice", "bob"}
+_LOCKED_ATTEMPTS: dict[str, int] = {}
 
 
 # --- Story 5.4 detection endpoint ---------------------------------------
@@ -152,6 +199,74 @@ def file_serve():
         )
         return passwd, 200, {"Content-Type": "text/plain; charset=utf-8"}
     return f"<html><body>file: {name}</body></html>", 200
+
+
+# --- POST /login : user-enum diff + no-lockout target -------------------
+@app.route("/login", methods=["POST"])
+def login():
+    user = request.form.get("user", "")
+    password = request.form.get("password", "")
+    if not user or not password:
+        return "Missing credentials", 401
+    if user not in KNOWN_USERS:
+        # Gap 2: distinct body for unknown user enables user-enum diff.
+        return "Unknown user", 401
+    if user == "admin":
+        session["role"] = "admin"
+    else:
+        session["role"] = "user"
+    session.modified = True
+    return redirect("/", code=302)
+
+
+# --- POST /login-locked : per-source-IP lockout target ------------------
+@app.route("/login-locked", methods=["POST"])
+def login_locked():
+    src = request.remote_addr or "unknown"
+    attempts = _LOCKED_ATTEMPTS.get(src, 0) + 1
+    _LOCKED_ATTEMPTS[src] = attempts
+    if attempts > 5:
+        return "Account temporarily locked due to too many failed attempts.", 429
+    return "Invalid credentials", 401
+
+
+# --- POST /logout : Gap 4 — session not cleared -------------------------
+@app.route("/logout", methods=["POST"])
+def logout():
+    # Deliberately do NOT call session.clear() — cookie remains valid for
+    # subsequent authed requests (session.session_persists_post_logout
+    # acceptance target).
+    return jsonify({"status": "logged out"})
+
+
+# --- POST /csrf-broken : csrf_missing target ----------------------------
+@app.route("/csrf-broken", methods=["POST"])
+def csrf_broken():
+    # No CSRF-token validation. Accepts any POST.
+    return jsonify({"status": "ok"})
+
+
+# --- GET /admin/ : access_control role_violation target -----------------
+@app.route("/admin/")
+def admin_panel():
+    if session.get("role") == "admin":
+        body = (
+            "<html><head><title>Admin Dashboard</title></head><body>"
+            "<h1>Admin Dashboard</h1>"
+            "<h2>All Users</h2>"
+            "<ul><li>admin</li><li>alice</li><li>bob</li></ul>"
+            "</body></html>"
+        )
+        return body, 200
+    return "Forbidden", 403
+
+
+# --- GET /idor/<id> : cross_account_leak target -------------------------
+@app.route("/idor/<int:id>")
+def idor(id):
+    """Same body for ANY authenticated session — cross-session sha256 match
+    enables idor cross_account_leak."""
+    return jsonify({"id": id, "data": f"resource-{id}-data"})
 
 
 if __name__ == "__main__":

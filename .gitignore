@@ -1,5 +1,6 @@
 __pycache__
 *.pyc
+*.egg-info/
 webprobe_*.html
 webprobe_*.txt
 !screenshots/webprobe_*
