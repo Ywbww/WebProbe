@@ -1,0 +1,9 @@
+# Default admin-shape paths probed by the access_control module.
+# Edit to add per-target paths; comment lines (# prefix) are stripped
+# by BaseModule's data loader.
+/admin/
+/admin/users
+/backoffice/
+/cpanel/
+/manage/
+/console/

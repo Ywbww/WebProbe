@@ -1,0 +1,12 @@
+# Multi-language admin-page text signals (spec.E1).
+# Match is case-insensitive substring against response body. "All Users"
+# is the testbed-matching signal for Item 9 verify (testbed /admin/
+# returns "All Users" when role==admin).
+All Users
+Admin Dashboard
+All Messages
+Manage Users
+User Management
+System Configuration
+Server Status
+管理后台

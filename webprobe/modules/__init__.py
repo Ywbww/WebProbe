@@ -6,6 +6,11 @@ from webprobe.modules.sqli import SqliModule
 from webprobe.modules.traversal import TraversalModule
 from webprobe.modules.xss import XssModule
 
+# v2 modules: import for @register side effects (Phase 1 enumeration
+# reads MODULE_REGISTRY). Each v2 module file decorates its class with
+# @register at module level, so a side-effect import is sufficient.
+from webprobe.modules import access_control  # noqa: F401
+
 MODULES: list[type[BaseModule]] = [
     HeadersModule,
     InfoDisclosureModule,
