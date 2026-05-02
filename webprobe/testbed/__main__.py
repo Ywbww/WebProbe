@@ -201,9 +201,24 @@ def file_serve():
     return f"<html><body>file: {name}</body></html>", 200
 
 
-# --- POST /login : user-enum diff + no-lockout target -------------------
-@app.route("/login", methods=["POST"])
+# --- GET/POST /login : user-enum diff + no-lockout target ---------------
+_LOGIN_FORM_HTML = """<!DOCTYPE html>
+<html><head><title>Login</title></head>
+<body>
+<h1>Sign in</h1>
+<form method="POST" action="/login">
+  <input type="text" name="user" placeholder="username">
+  <input type="password" name="password" placeholder="password">
+  <button type="submit">Sign in</button>
+</form>
+</body></html>
+"""
+
+
+@app.route("/login", methods=["GET", "POST"])
 def login():
+    if request.method == "GET":
+        return _LOGIN_FORM_HTML
     user = request.form.get("user", "")
     password = request.form.get("password", "")
     if not user or not password:
