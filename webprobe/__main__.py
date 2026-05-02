@@ -41,6 +41,10 @@ def _build_parser() -> argparse.ArgumentParser:
                         "attribution (e.g. 'admin', 'coach').")
     p.add_argument("--cookie", dest="cookie", default=None,
                    help="RFC 6265 Cookie header form for cookie-based auth.")
+    p.add_argument("--logout-url", dest="logout_url", default=None,
+                   help="Explicit logout URL for the session module's "
+                        "post-logout cookie-replay test (overrides "
+                        "heuristic discovery).")
     p.add_argument("--idor-baseline", dest="idor_baseline", default=None,
                    help="Cookie string for IDOR baseline session.")
     p.add_argument("--idor-baseline-form", dest="idor_baseline_form",

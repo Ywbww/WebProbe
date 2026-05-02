@@ -250,12 +250,15 @@ def login_locked():
     return "Invalid credentials", 401
 
 
-# --- POST /logout : Gap 4 — session not cleared -------------------------
-@app.route("/logout", methods=["POST"])
+# --- GET/POST /logout : Gap 4 — session not cleared ---------------------
+@app.route("/logout", methods=["GET", "POST"])
 def logout():
     # Deliberately do NOT call session.clear() — cookie remains valid for
     # subsequent authed requests (session.session_persists_post_logout
-    # acceptance target).
+    # acceptance target). GET handler mirrors /login + /login-locked
+    # precedent so the session module's logout-URL heuristic discovery
+    # can probe via GET (many real apps expose GET-redirects-to-POST or
+    # GET /logout — keep discovery realistic).
     return jsonify({"status": "logged out"})
 
 
