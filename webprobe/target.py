@@ -21,6 +21,7 @@ def discover_target(url: str, response: Response, profile: Optional[str]) -> Tar
             action = urljoin(url, f.get("action") or url)
             method = (f.get("method") or "GET").upper()
             fields: dict[str, str] = {}
+            hidden: list[str] = []
             for inp in f.find_all(["input", "textarea", "select"]):
                 itype = (inp.get("type") or "").lower()
                 if itype in ("submit", "button", "image"):
@@ -29,7 +30,10 @@ def discover_target(url: str, response: Response, profile: Optional[str]) -> Tar
                 if not name:
                     continue
                 fields[name] = inp.get("value") or ""
-            forms.append(Form(action=action, method=method, fields=fields))
+                if itype == "hidden":
+                    hidden.append(name)
+            forms.append(Form(action=action, method=method,
+                              fields=fields, hidden_fields=hidden))
     except Exception as e:
         print(f"[!] form discovery failed ({type(e).__name__}) — proceeding with no forms")
 

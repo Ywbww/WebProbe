@@ -10,6 +10,7 @@ from webprobe.modules.xss import XssModule
 # reads MODULE_REGISTRY). Each v2 module file decorates its class with
 # @register at module level, so a side-effect import is sufficient.
 from webprobe.modules import access_control  # noqa: F401
+from webprobe.modules import csrf  # noqa: F401
 from webprobe.modules import idor  # noqa: F401
 
 MODULES: list[type[BaseModule]] = [

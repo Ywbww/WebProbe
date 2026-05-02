@@ -808,7 +808,7 @@ realistic ~22.2 hr, aligns to original Sprint 1 1.5x estimate.
   ```
   Estimated time: 30 min
 
-- [ ] **16. `csrf` module**
+- [x] **16. `csrf` module**
   Spec ref: `spec.md > csrf.py` + `prd.md > Epic 7 > Story 7.3`
   What to build: `webprobe/modules/csrf.py` per spec. `@register`,
   `name="csrf"`, `auth_strategy="auth_required"`, `FIT3048_CATEGORY_MAP=

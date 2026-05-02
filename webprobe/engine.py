@@ -134,8 +134,9 @@ class Engine:
 
     # --- Phase 3: connectivity check ------------------------------------
     def _phase_3(self) -> None:
-        """Single GET against args.target_url; store as base_response on a
-        bare Target. Discovery (Phase 4, Item 10) replaces forms+urls."""
+        """Single GET against args.target_url; build Target with forms +
+        query_params extracted from the response body via
+        target.discover_target. Phase 4 (Item 10) layers in target.urls."""
         try:
             resp = requests.get(
                 self.args.target_url,
@@ -145,14 +146,8 @@ class Engine:
         except requests.RequestException as exc:
             print(f"[-] Target unreachable: {exc}", file=self._terminal_stream)
             sys.exit(1)
-        self._target = Target(
-            url=self.args.target_url,
-            base_response=resp,
-            forms=[],
-            query_params={},
-            profile=None,
-            urls=(),
-        )
+        from webprobe.target import discover_target
+        self._target = discover_target(self.args.target_url, resp, profile=None)
 
     # --- Phase 3.5: testbed detection -----------------------------------
     def _phase_3_5(self) -> None:

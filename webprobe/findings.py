@@ -77,10 +77,15 @@ class Finding:
 
 
 @dataclass
-class Form:                                        # v1 unchanged
+class Form:                                        # v1 + v2 hidden_fields
     action: str
     method: str
     fields: dict[str, str]
+    # v2 addition: names of <input type="hidden"> entries in the form. CSRF
+    # module strips these per Story 7.3 ("strip ALL hidden inputs"). v1
+    # callers ignore the field; default = empty list keeps v1 construction
+    # `Form(action, method, fields)` working positionally.
+    hidden_fields: list[str] = field(default_factory=list)
 
 
 @dataclass
