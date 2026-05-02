@@ -14,6 +14,7 @@ from webprobe.modules import brute_force  # noqa: F401
 from webprobe.modules import csrf  # noqa: F401
 from webprobe.modules import error_leakage  # noqa: F401
 from webprobe.modules import idor  # noqa: F401
+from webprobe.modules import session  # noqa: F401
 
 MODULES: list[type[BaseModule]] = [
     HeadersModule,
