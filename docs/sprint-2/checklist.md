@@ -779,7 +779,7 @@ realistic ~22.2 hr, aligns to original Sprint 1 1.5x estimate.
   JSON reports.
   Heaviness: medium.
 
-- [ ] **15. `idor` module**
+- [x] **15. `idor` module**
   Spec ref: `spec.md > idor.py` + `prd.md > Epic 7 > Story 7.2`
   What to build: `webprobe/modules/idor.py` per spec. `@register` class,
   `name="idor"`, `auth_strategy="auth_required"`, `source_filter=ALL_SOURCES`,
