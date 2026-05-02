@@ -832,7 +832,7 @@ realistic ~22.2 hr, aligns to original Sprint 1 1.5x estimate.
   ```
   Estimated time: 25 min
 
-- [ ] **17. `error_leakage` module — P1 CUT TARGET** — MUST SPLIT (17a user enumeration probe, 17b stack-trace own probe set + pattern matching)
+- [x] **17. `error_leakage` module — P1 CUT TARGET** — MUST SPLIT (17a user enumeration probe, 17b stack-trace own probe set + pattern matching)
   Spec ref: `spec.md > error_leakage.py` + `prd.md > Epic 7 > Story 7.4`
   What to build: `webprobe/modules/error_leakage.py` per spec. `@register`,
   `FIT3048_CATEGORY_MAP={"username_enumeration_login": 7, "stack_trace_leakage":
@@ -866,7 +866,7 @@ realistic ~22.2 hr, aligns to original Sprint 1 1.5x estimate.
   ```
   Estimated time: 45 min (MUST SPLIT into 17a/17b)
 
-- [ ] **18. `session` module — P1 CUT TARGET** — MUST SPLIT (18a post-logout cookie replay, 18b session fixation + logout URL discovery)
+- [x] **18. `session` module — P1 CUT TARGET** — MUST SPLIT (18a post-logout cookie replay, 18b session fixation + logout URL discovery)
   Spec ref: `spec.md > session.py` + `prd.md > Epic 7 > Story 7.5`
   What to build: `webprobe/modules/session.py` per spec. `@register`,
   `FIT3048_CATEGORY_MAP` with 4 keys (`session_persists_post_logout`,
