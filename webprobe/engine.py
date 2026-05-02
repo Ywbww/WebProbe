@@ -313,29 +313,61 @@ class Engine:
             )
             self._findings.append(f)
 
-    # --- Phase 5f: authed sitemap (stub) --------------------------------
+    # --- Phase 5f: authed sitemap ---------------------------------------
     def _phase_5f(self) -> None:
-        """Authed sitemap — concrete body lands at Item 10 with discovery.py.
-        Stub now so Phase 5 ordering is correct.
+        """Authed sitemap (Story 2.1 + Phase 5 abort table).
 
-        Per spec Phase 5 abort/continue table, SitemapDiscoveryError aborts
-        with sys.exit(1) once wired.
+        Triggered when --use-sitemap-authed is set AND auth pipeline has
+        a primary session. Re-fetches /sitemap.xml with the authed session
+        and merges new URLs into the existing pool (re-dedup applied).
+
+        Per spec, SitemapDiscoveryError here aborts with sys.exit(1)
+        — same fail-loud lock as Phase 4 unauth sitemap.
         """
-        return
+        if not getattr(self.args, "use_sitemap_authed", False):
+            return
+        if not self._sessions:
+            return
+        if self._target is None:
+            return
+        robots_advertised = bool(
+            getattr(self.args, "_discovery_robots_result", None)
+            and self.args._discovery_robots_result.sitemap_url_advertised
+        )
+        try:
+            new_pool, sitemap_result = _discovery.merge_authed_sitemap(
+                self._target,
+                self._target.urls,
+                authed_session=self._sessions[0],
+                advertised_via_robots=robots_advertised,
+            )
+        except _discovery.SitemapDiscoveryError as exc:
+            print(f"[-] {exc}", file=self._terminal_stream)
+            sys.exit(1)
+        self._target.urls = new_pool
+        self.args._discovery_sitemap_result = sitemap_result
 
-    # --- Phase 4: URL pool resolution (stub) ----------------------------
+    # --- Phase 4: URL pool resolution -----------------------------------
     def _phase_4(self) -> None:
-        """URL pool resolution — concrete body lands at Item 10 with
-        discovery.resolve_url_pool. Stub leaves `target.urls` as the empty
-        tuple set in Phase 3.
+        """URL pool resolution (Epic 2). Composes sitemap + robots +
+        url-list + dynamic + curated, dedups by source priority
+        (url_list > robots > curated > sitemap > dynamic per Story
+        2.4.E1), and freezes the result as a tuple on target.urls.
 
-        Item 9's first vertical slice (access_control) reads its candidate
-        paths from its own DATA_FILES, NOT from target.urls, so an empty
-        pool is fine here. Modules that filter by `source_filter` will be
-        no-ops until Item 10 populates the pool.
+        Auth-gated sitemap fetch (--use-sitemap-authed) is handled later
+        in Phase 5f so the authed session is available; resolve_url_pool
+        skips sitemap when use_sitemap_authed is set.
+
+        SitemapDiscoveryError propagates to run_pipeline's existing
+        Phase 4 abort handler (sys.exit(1)).
         """
-        if self._target is not None:
-            self._target.urls = ()
+        if self._target is None:
+            return
+        # sessions arg here is None at Phase 4 (auth runs at Phase 5);
+        # passing it for forward-compat with Sprint 3+ unauth-aware
+        # discovery flows.
+        pool = _discovery.resolve_url_pool(self.args, self._target, sessions=None)
+        self._target.urls = pool
 
     # --- Phase 6: per-module dispatch -----------------------------------
     def _phase_6(self) -> None:
