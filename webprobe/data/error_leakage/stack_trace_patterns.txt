@@ -1,0 +1,37 @@
+# Multi-language stack-trace / framework error patterns.
+# Loaded by webprobe.modules.error_leakage. One pattern per line; '#'
+# comments and blank lines are stripped at load time. Patterns are
+# substring-matched against the response body (case-sensitive — most
+# stack-trace markers preserve their canonical capitalization).
+#
+# Python
+Traceback (most recent call last):
+File "
+line
+# PHP
+PHP Fatal error
+PHP Warning
+PHP Notice
+Stack trace:
+# Ruby on Rails
+ActionController::
+NoMethodError
+NameError
+# Java
+java.lang.NullPointerException
+java.lang.RuntimeException
+at org.springframework
+at java.base
+Exception in thread
+java.sql.SQLException
+# .NET / IIS
+ASP.NET
+HTTP Status 500
+The system cannot find
+# DB drivers
+SQLSTATE[
+mysqli_
+PDOException
+# Generic syntax / parse errors
+syntax error
+unexpected token
