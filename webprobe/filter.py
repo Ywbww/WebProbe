@@ -105,14 +105,20 @@ def _suggest_module_name(name: str, valid_names: frozenset[str]) -> tuple[Option
 def validate_module_flags(args) -> None:
     """Phase 0.5 inter-flag validator (Story 4.1).
 
-    Invariants:
+    Phase 0.5 is the no-HTTP, shape-coherence gate. Invariants checked
+    here are flag-shape only:
       * mutex: ``--include-modules`` ⊕ ``--exclude-modules``
       * each name in include/exclude resolves to a registered module;
         Levenshtein-like suggestion when it doesn't, with case-sensitive
         hint when only case differs.
-      * gated-module-in-include needs corresponding gate flag(s).
-        Multi-error: lists ALL missing gate flags at once (extends-
-        actionable-error pattern).
+
+    Gated-module-in-include validation (the rule that ``--include-modules
+    access_control`` requires ``--i-own-this-target``) is testbed-aware,
+    so it lives in Phase 3.6 (``filter_modules_by_risk_gates``) — by
+    then ``detect_testbed`` has run and we know whether to bypass.
+    Build deviation #6 (Sprint 2): originally placed at Phase 0.5 in
+    Item 14a, surfaced at Checkpoint C as a spec violation against the
+    Q4 truth table (Phase 0.5 must not require HTTP knowledge).
 
     Raises ``ConfigurationError`` on violation.
     """
@@ -159,30 +165,8 @@ def validate_module_flags(args) -> None:
                 f"Available modules: {available}"
             )
 
-    # Cross-flag gated-module-in-include validation.
-    if include:
-        included = set(parse_module_list(include))
-        missing_gates: dict[str, list[str]] = {}
-
-        if "brute_force" in included:
-            needed: list[str] = []
-            if not getattr(args, "include_brute_force", False):
-                needed.append("--include-brute-force")
-            if not getattr(args, "i_own_this_target", None):
-                needed.append("--i-own-this-target=<hostname>")
-            if needed:
-                missing_gates["brute_force"] = needed
-
-        for gated in sorted(_GATED_SINGLE & included):
-            if not getattr(args, "i_own_this_target", None):
-                missing_gates[gated] = ["--i-own-this-target=<hostname>"]
-
-        if missing_gates:
-            lines = ["The following modules require risk-gate flags:"]
-            for mod, flags in sorted(missing_gates.items()):
-                lines.append(f"  {mod}: requires {' AND '.join(flags)}")
-            lines.append("See risk gates in --help.")
-            raise ConfigurationError("\n".join(lines))
+    # Gated-module-in-include validation moved to Phase 3.6 — see
+    # filter_modules_by_risk_gates() for the testbed-aware version.
 
 
 def validate_i_own_this_target(args) -> None:
@@ -319,8 +303,18 @@ def filter_modules_by_risk_gates(
     """Story 5.1 / 5.2 / 5.4 — apply per-module risk-gate flags.
 
     Testbed bypass returns ``(modules, [])`` — gates skipped entirely.
-    Otherwise drops gated modules whose flags aren't set, returning
-    ``(kept, [(cls, reason), ...])`` for the banner.
+    Otherwise:
+      * If ``--include-modules`` explicitly names a gated module without
+        the corresponding gate flag, raise ``ConfigurationError`` listing
+        ALL missing gate flags at once (extends-actionable-error pattern,
+        Story 4.1 / 5.1 / 5.2). Hard error — user explicitly asked for
+        the module but didn't authorize the risk surface.
+      * Otherwise drop gated modules whose flags aren't set, returning
+        ``(kept, [(cls, reason), ...])`` for the banner.
+
+    The hard-error branch was originally at Phase 0.5
+    (validate_module_flags) but that's HTTP-blind and broke testbed
+    bypass — see build deviation #6.
     """
     mods = list(modules)
     if is_testbed:
@@ -328,6 +322,32 @@ def filter_modules_by_risk_gates(
 
     has_iott = bool(getattr(args, "i_own_this_target", None))
     has_brute = bool(getattr(args, "include_brute_force", False))
+
+    # Cross-flag gated-module-in-include hard error (non-testbed only).
+    include_raw = getattr(args, "include_modules", None)
+    if include_raw:
+        included = set(parse_module_list(include_raw))
+        missing_gates: dict[str, list[str]] = {}
+
+        if "brute_force" in included:
+            needed: list[str] = []
+            if not has_brute:
+                needed.append("--include-brute-force")
+            if not has_iott:
+                needed.append("--i-own-this-target=<hostname>")
+            if needed:
+                missing_gates["brute_force"] = needed
+
+        for gated in sorted(_GATED_SINGLE & included):
+            if not has_iott:
+                missing_gates[gated] = ["--i-own-this-target=<hostname>"]
+
+        if missing_gates:
+            lines = ["The following modules require risk-gate flags:"]
+            for mod, flags in sorted(missing_gates.items()):
+                lines.append(f"  {mod}: requires {' AND '.join(flags)}")
+            lines.append("See risk gates in --help.")
+            raise ConfigurationError("\n".join(lines))
 
     kept: list[type] = []
     dropped: list[tuple[type, str]] = []

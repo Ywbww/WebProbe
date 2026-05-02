@@ -686,3 +686,1324 @@ scope reduction noted in the checklist body so /reflect can pick it up.
   lands, the `send()` helper will need a `cookies=` parameter,
   and having all three HTTP-issuing modules go through one
   function is the right place to add it.
+
+## Sprint 2 — /scope
+
+**Entry state.** Trump arrived with `docs/sprint-2/scope-input.md`:
+30 candidate items in 6 groups, an explicit ask for pushback on
+scope ("expecting /scope to recommend splitting"), two locked
+architectural decisions (multi-URL = A+B not spider; template
+system MUST be in roadmap), and two explicit "don't relitigate"
+guardrails (architecture, workflow). The scope-input.md served
+as the brain dump — the Phase-1 brain-dump beat was skipped
+entirely. Research/reaction beat was also skipped (wrong phase
+for a going-deeper sprint; Sprint 1's references still apply).
+
+**Conversation shape.** Three sharpening questions in mandatory
+beats, two deepening rounds requested (α and β), one inline-
+answered (γ). Total: 4 substantive exchanges to land a 14-item
+sprint with falsifiable win condition, two-endpoint structure,
+and concrete acceptance image. Materially leaner than Sprint 1's
+/scope conversation; consistent with returning-learner
+calibration that landed at /onboard.
+
+**Q1 — win condition.** Trump picked (A) authenticated-scanning
+win unprompted with full falsifiable form ("Coach A reaches
+Coach B's resource OR provable-silence SCAN COVERAGE block").
+The dual shape (find-or-provably-clean) is the most important
+single contribution of the entire conversation — it makes
+Sprint 2 land even when FIT3047 Iteration 2 is genuinely
+secure, by treating "scanner exercised the right pages with
+the right session and reports cleanly" as positive evidence.
+The "evolving alongside Iteration 2 of FIT3047" framing
+(Sprint 2 strengthens the system it's meant to audit, not a
+parallel hobby project) was Trump's, unprompted.
+
+**Q2 — single-vs-multi-session auth contract.** Agent presented
+3 options (a/b/c). Trump picked (c) — but the contract design he
+returned was substantially better than the (c) option as
+presented. The "list-always with `sessions[0]` default" pattern
+unifies what (c) had as a parallel-contract split: 5/6 modules
+remain identical to v1 (`s = session_factory()[0]` is one line,
+no conditional), IDOR is the only multi-session consumer, and
+the INFO finding when `--idor-baseline` is missing prevents
+silent capability degradation. This is the "no false confidence"
+discipline from Sprint 1's partial-scan signaling carried into
+the IDOR contract. Agent's contribution was framing the fork
+and noting the 80/20 module split; Trump's was the unified
+shape that resolved (b) vs (c) as a presentation problem
+rather than structural.
+
+**Q3 — testbed + brute_force + execution-evidence (bundled).**
+Agent surfaced three entangled concerns: (1) Sprint 2 modules
+have near-zero true-positive rate against hardened targets,
+breaking the "FIT3047 = win-condition validator AND module
+validator" Sprint 1 luxury; (2) brute_force's lockout risk
+hadn't been answered (re-raises Sprint 1 /scope's auth-probing
+cut); (3) "provable silence" in the win condition is doing
+unnamed engineering work. Trump returned three crisp answers:
+(c) self-contained testbed (`webprobe/testbed/` Flask app with
+deliberately-broken endpoints, doubles as cohort-install sanity
+check), (i)+(ii) testbed-default + double-flag opt-in for
+brute_force (`--include-brute-force` requires partner
+`--i-own-this-target` — friction-as-feature, forcing the user
+to type a sentence asserting ownership), and a new SCAN COVERAGE
+output block as P0 (not P1) because it's half the win condition.
+
+The double-flag pattern is Trump's strongest single design
+moment in this conversation — `--include-traversal` from v1
+was a single-flag opt-in, but brute_force's asymmetric
+operational consequence (lockout vs log pollution) earned a
+higher friction barrier. The `--i-own-this-target` flag exists
+purely to force a typed assertion; nothing about its semantics
+adds technical capability. The "testbed-default" guard means
+brute_force on real targets is impossible without two
+deliberate, non-overlapping opt-ins — a Sprint 1 mature-
+security-tooling-instinct moment carried forward.
+
+**Deepening rounds.**
+
+- **Round α (acceptance moment).** Trump volunteered the full
+  concrete terminal output with 5 things it pins (auth_context
+  field, COVERAGE-as-section, `idor-baseline-missing` INFO
+  beside HIGHs, heavy command-line shape, two-tier finding
+  architecture). Agent's two questions in this round (Q-α-1
+  flag shape, Q-α-2 form auto-discovery) were both pre-
+  answered in his framing, which is the highest signal of
+  good-conversation-as-spec-input. The acceptance image is
+  the literal acceptance test for Sprint 2's output-renderer
+  items — same role Sprint 1's `[HIGH] Reflected XSS` block
+  played for items 5 and 13.
+
+- **Round β (sprint endpoint shape).** Trump proposed the
+  two-endpoint structure (A engineering-complete, B win-pinned,
+  externally-gated). Agent confirmed and added the max-gap
+  fallback (~2 weeks; if Iteration 2 hasn't deployed, validate
+  against testbed + secondary target, declare provisionally-won,
+  re-run when available). The two-endpoint shape resolves a
+  real Sprint 2 risk (externally-gated win could float
+  indefinitely) without coupling engineering doneness to
+  Team 157 deployment timeline. v2.0.0 release tag fires at
+  Endpoint B; optional v2.0.0-rc.1 at Endpoint A for cohort
+  users who clone between the two.
+
+- **Round γ (cohort-canonical thread, answered inline).**
+  Trump correctly drew the line between "Sprint 2 ships the
+  shape that makes cohort adoption possible" (in scope) and
+  "another team actually adopts it" (Sprint 3+ outcome).
+  The scope.md framing dropped "canonical cohort security
+  tool" in favor of "auth-aware web scanner usable for
+  FIT3047/FIT3048 work, hardened against Team 157's
+  deployment as the canonical test target" — direction
+  preserved, outcome scoped to single-team.
+
+**Final cut: 14 items, ~13-16 hrs build.**
+
+- P0 (10 items, ~10-12 hrs): 1, 2 (with auto-discovery),
+  3 (multi-session contract), 3.5 (testbed — NEW), 3.6
+  (SCAN COVERAGE — NEW), 4, 5, 6, 8, 23
+- P1 (6 items, ~3-4 hrs): 7 (brute_force, double-flag gated),
+  9, 18, 26, 27, 28
+- Stretch (~30 min): `--export-md` mini
+
+Net additions to scope-input.md baseline: +1.5 hrs (testbed),
++0.5 hrs (SCAN COVERAGE block), +30 min (`--auth-form` field
+auto-discovery). All three are win-condition-load-bearing.
+
+**Cuts to Sprint 3 (with reasons):**
+- Items 10-17 (general detection expansion) — valuable, none
+  auth-related, dilutes Sprint 2's focused thread
+- Items 19-22 (full template system) — largest engineering
+  effort, not on auth-win critical path, `--export-md` mini
+  in stretch ships the shape Sprint 3 grows from
+- Item 24 (full README revision) — Sprint 2 README updates
+  scoped to v2 features only
+- Item 25 (pytest suite) — testbed serves as manual
+  integration-test harness for Sprint 2; pytest automation
+  is Sprint 3 work
+
+**Pushback received and how Trump handled it.**
+- Single-vs-multi-session fork: agent presented (a)/(b)/(c)
+  with tradeoffs; Trump picked (c) and improved on its
+  contract design (list-always default len 1).
+- Test-bed reality concern: agent framed as four options;
+  Trump picked (c) self-contained testbed with five-clause
+  rationale (rejected juice-shop on response-shape grounds,
+  rejected FIT3047-dev on team-buy-in grounds, rejected
+  no-testbed on TDD-signal grounds, picked self-contained
+  on permanence + cohort-install-sanity-check grounds).
+- brute_force operational risk: agent surfaced the Sprint 1
+  /scope contradiction; Trump returned the double-flag
+  pattern that explicitly preserves the original concern.
+- Cohort-canonical framing: agent flagged the "canonical
+  cohort tool" → "Team-157-only win" gap; Trump confirmed
+  it was framing language, not commitment, and answered
+  the round inline rather than burning a deepening round
+  on it.
+
+**Active shaping.** As actively-shaped as Sprint 1's /scope,
+maybe more so. Trump drove:
+- Win condition selection AND the dual-shape (find-or-
+  provably-clean) refinement
+- The unified list-always session_factory shape
+- The double-flag `--include-brute-force` +
+  `--i-own-this-target` pattern
+- The two-endpoint structure with v2.0.0 release at B
+- The concrete acceptance terminal output (5 things-it-
+  pins came from his framing, not the agent's)
+- The cohort-canonical scope correction (inline-answered γ)
+- The Sprint 3 cut list with per-item reasoning
+
+Agent led:
+- Q1 framing (4 win-condition shapes for selection)
+- Q2 framing (single-vs-multi session as a/b/c)
+- Q3 bundling (testbed + brute_force + evidence as one
+  entangled cluster)
+- Round-α/β/γ offer with target descriptions
+- Max-gap fallback addition to two-endpoint structure
+- ZAP/Burp Authenticator references for v2 inspiration
+
+**Calibration notes for /sprint-2/prd:**
+- Trump enters /prd with the spec-vs-build line already
+  internalized. Don't re-argue defaults that have a
+  reasoned default + reopen-condition.
+- Multi-session contract is locked at /scope; /prd should
+  not relitigate the auth-flow shape, only refine the CLI
+  surface and acceptance criteria.
+- Five "things this acceptance image pins" from round α
+  are direct /prd → /spec carryover. Don't lose them.
+- Open questions explicitly carried to /prd: combined
+  unauth-and-auth scan default behavior, module-fire
+  ordering with auth, sitemap+robots interaction with
+  auth, JSON schema versioning, banner/help text.
+- Two-endpoint structure with max-gap fallback should
+  appear in /prd's acceptance-criteria section, not just
+  /scope's "Done" section.
+
+**Risks observed and named, not eliminated.**
+1. Endpoint B externally-gated by Team 157 Iteration 2
+   deployment. Max-gap fallback (~2 weeks → testbed +
+   secondary target validation, provisionally-won) is the
+   recovery path. Not a /build concern; a Sprint-2-as-a-
+   whole concern.
+2. Auth-detection modules' near-zero true-positive rate
+   against hardened targets. Testbed (item 3.5) is the
+   recovery path — modules get validated against known-
+   vulnerable endpoints before shipping.
+3. Sprint 2 build estimate (13-16 hrs) is 2-2.5x Sprint 1.
+   Two named recovery paths: P1 cuts (drop items 7, 9, 18,
+   26-28 in priority order if hitting hour 12 with P0
+   incomplete); stretch item is explicitly "skip if tight."
+   Trump set this estimate himself with eyes open.
+
+All three risks have explicit recovery paths, matching the
+Sprint 1 /checklist pattern: observed, named, recoverable.
+
+**Carryover for /sprint-2/prd:**
+- Acceptance moment terminal output → lift verbatim into
+  /prd as the canonical Sprint 2 acceptance test.
+- Multi-session contract (list-always, default len 1, IDOR
+  is sole consumer) → carry to /spec without modification.
+- Double-flag brute_force gate → carry to /spec, may need a
+  one-line opt-in confirmation prompt during scan setup.
+- SCAN COVERAGE block as structural section → /spec decides
+  whether new `output/coverage.py` module or extension to
+  `terminal.py`/`html.py`.
+- `Finding` dataclass extensions (`auth_context`,
+  `baseline_context`) — both `Optional[str]`, both `None`
+  for v1-shape findings, preserves backward compatibility.
+- Two-endpoint structure with max-gap fallback → /prd's
+  acceptance-criteria section.
+
+## Sprint 2 — /prd
+
+**Entry state.** /scope was unusually deep: multi-session contract,
+double-flag brute_force, testbed, SCAN COVERAGE block as P0,
+two-endpoint Done structure, literal acceptance terminal output, and
+five "things-it-pins" already carried verbatim into the brief. Five
+explicit open questions handed off from /scope (combined unauth+auth
+scan default, module-fire ordering, sitemap/robots-with-auth, JSON
+schema versioning, banner/help text). PRD's mandate: formalize user
+stories, resolve the five opens, surface auth-specific edge cases.
+
+**Conversation shape.** Five mandatory beats (the five scope-opens
+restructured into Q1-Q5), then pivot to formalized epics with full
+user stories + acceptance criteria epic-by-epic. Trump declined
+deepening rounds — the depth happened during the epic walks instead.
+Each epic close-out involved 1-11 inline edge resolutions; Trump
+answered all with reasoning depth roughly proportional to risk
+class (highest density on Risk Gates and Module Contract). 7 epics,
+~40 stories, ~75 inline edges resolved.
+
+**Five scope-opens resolved:**
+- *Q1 combined unauth+auth scans:* Trump returned `auth_strategy`
+  field on BaseModule (`unauth_always` / `follow` / `auth_required`),
+  with `--scan-both` for explicit double-pass. Refined "follow"
+  semantic mid-conversation: "follow" means "unauth by default; if
+  --scan-both is also set, run a second time with session attached"
+  — NOT auto-switch when --auth-form is provided. This refinement
+  preserved the 47-req acceptance image budget.
+- *Q2 module-fire ordering:* α ordering (all v1 unauth → login →
+  auth modules), throwaway sub-session for `session` module,
+  back-to-back per-module --scan-both ordering for debuggability.
+- *Q3 sitemap/robots/auth:* Tagged URL pool with per-module
+  `source_filter` parallel to `auth_strategy` — same declare-and-
+  dispatch contract pattern. Fail-loud on auth-gated sitemap with
+  302→login detection (not just 401). Wildcard trim + INFO finding.
+- *Q4 JSON schema:* Versioned envelope (v2.0), semver rules locked
+  (MAJOR/MINOR/PATCH bump triggers), always-present-null field
+  stability, engine-side --scan-both dedup with
+  `seen_in: ["unauth", "authed"]`, evidence_hash as identity tuple.
+- *Q5 banner/help:* Defer wording to /build, but pin `--help` flag
+  taxonomy (5 categories) in /prd as source of truth that doubles
+  as epic spine. OPERATIONAL_RISK chip extension to v2 (gated
+  module enumeration + gate flag audit trail) pinned in /prd, not
+  deferred.
+
+**Six design patterns that emerged this sprint** (Trump asked these
+be surfaced for /reflect and Sprint 3 propagation):
+
+1. **`capability-axis-single-helper`** (Story 6.5.E1). When extending
+   a helper to cover a new variation of the same capability, extend
+   the existing helper file with a backward-compatible signature
+   change rather than splitting into a parallel helper. Splitting
+   encodes implementation history as a permanent file boundary;
+   future readers can't infer "why does X use _common but Y uses
+   _auth_common" beyond "because of when each was added."
+2. **`friction-as-binding`** (Story 5.5.E1). When a flag's purpose is
+   authorization assertion, value-taking-with-validation
+   (`--i-own-this-target=<hostname>` matching target) is dominant
+   over bare-flag-with-typed-name. Bare flag decouples assertion
+   from target identity (wrapper script can hardcode it forever);
+   value-taking with target-match auto-invalidates on target
+   change. Friction without binding is security theater.
+3. **`no-false-alarm vs no-false-confidence`** (Story 7.1.E2). Two
+   distinct disciplines, both required: (a) don't claim coverage
+   you didn't achieve → INFO finding documenting the gap; (b)
+   don't claim findings you can't confirm → skip emission, document
+   in COVERAGE summary. False alarms erode scanner trust faster than
+   missed findings; the pair gives the scanner an honest voice in
+   both directions.
+4. **`owner=epic-that-declares-the-dataclass`** (Q1+(c) decision).
+   When a field touches multiple epics (Authentication generates,
+   Output renders), the epic that *declares the dataclass*
+   (Module Contract) owns it. Forward-compatible rule for future
+   Finding extensions (`confidence_score`, `cwe_id`, `related_cve`).
+5. **`miss-this-scan-hint-for-next-scan`** (Story 2.5.E1). When the
+   scanner detects something out of pool that it cannot probe in
+   this scan, emit INFO with explicit upgrade hint for next scan
+   ("redirect target /dashboard not in URL pool; consider --url-list
+   for full coverage in next scan"). Honest about capability gaps,
+   actionable rather than silent.
+6. **`Sprint-3-promise-as-INFO-text-for-auto-carryover`** (Story
+   2.1.E1). When a feature is deferred but the deferral has a known
+   trigger condition, embed the future-flag promise into the INFO
+   finding text the user sees: "Sprint 3 will add --sitemap-cap <N>
+   for explicit override." This makes the carryover automatic
+   (becomes Sprint 3 /scope input) and informs the user during
+   v2 use that the gap is acknowledged. Counter-pattern to the more
+   common "PRD lists deferrals; user discovers gaps cold."
+
+**Two patterns extending Sprint 1 disciplines:**
+
+- **`empirical-validation-before-escape-hatch`** (Story 1.1.E2 lock).
+  `--auth-user-field` / `--auth-pass-field` deferred until the
+  auto-discovery field-name heuristic is validated against ≥3 real
+  testbeds. Tightens the usual "ship the flag, then see" pattern —
+  forces empirical observation before adding speculative flexibility.
+- **`audit-trail-records-user-typed-form-not-normalized`** (Story
+  3.4 + 5.5). `risk_gates_asserted` records exactly what user typed
+  (case preserved, no normalization). Audit trail's purpose is
+  evidence-of-action; normalization discards evidence.
+
+**Pushback received and how Trump handled it.**
+
+- *Q1 (a)/(b)/(c)/(d) framing:* picked (d) and refined into a
+  per-module declarative system. The agent's options were
+  presentation-axis splits; Trump returned a contract design that
+  unified them. Same pattern as scope's Q2 (single-vs-multi
+  session — agent presented (a)/(b)/(c), Trump returned a unified
+  shape that resolved (b)/(c) as presentation problem, not
+  structural).
+- *"follow" auto-switching ambiguity (Q1 self-correction):* Trump
+  caught an ambiguity in his own Q1 answer. The agent didn't notice
+  initially. The clarification ("follow" does NOT mean auto-switch;
+  it means unauth-by-default with --scan-both for second pass)
+  preserved the 47-req acceptance image as a live constraint.
+- *Epic 6 fold vs split (a):* agent proposed 6 epics with detection
+  modules folded into Module Contract; Trump split to 7 epics on
+  atomicity-over-symmetry grounds. Each epic must be an independently
+  closeable unit — Module Contract closes when contract works
+  end-to-end with a dummy module; module stories close
+  independently. Atomicity wins.
+- *--severity-min status (Epic 4):* agent surfaced as ambiguity;
+  Trump cut from Sprint 2 with rationale (consumer-side concern;
+  Sprint 3 templates handle it; `jq` solves ad-hoc).
+- *Epic 5 csrf gating (Story 7.3.E1):* Trump elevated csrf to
+  --i-own-this-target-gated mid-Epic-7. State-mutating risk is
+  structurally equivalent to brute_force's lockout risk — Q5(b)'s
+  initial framing missed this; Trump caught and corrected by
+  retroactively updating Epic 5 stories rather than treating as
+  Epic 7-local concern. Cross-epic correction handled cleanly.
+- *Mode enum proliferation (Story 3.1.E2):* agent suggested
+  "Cookie-attached, dual-session" variant; Trump locked Mode to
+  exactly 4 values with explicit reasoning ("Mode is taxonomy, not
+  provenance; auth_context carries provenance at finding-level").
+  Avoided enum proliferation that would propagate into JSON schema.
+
+**"What if" moments that surprised the agent.**
+
+- *Story 1.3.E1 same-user IDOR false-negative.* The catastrophic
+  silent-failure shape ("looks secure, is untested") wasn't visible
+  until agent explicitly framed the question. Trump's named-cookie
+  comparison detection (PHPSESSID, laravel_session, etc.) is a
+  mature security-tool detection pattern.
+- *Story 5.4.E1 testbed detection.* Agent's instinct was simple
+  host+port match; Trump escalated to dedicated `/__webprobe_testbed__/
+  health` endpoint with multi-field validation. The longer-term
+  failure (developer running CakePHP dev on port 9999, gates
+  silently bypassed, brute_force hammers the dev server) was the
+  exact OPERATIONAL_RISK gates exist to prevent. +1 HTTP request
+  cost = negligible against safety guarantee.
+- *Story 7.4.E1 stack-trace observation.* Agent proposed shared
+  response cache (cross-cutting); Trump rejected on architectural
+  grounds (breaks Story 6.3's frozen-pool pattern, introduces
+  grow-only mutable engine state, recurring "read from cache or
+  fetch fresh" cognitive tax on every future module). Trump's
+  alternative: error_leakage makes its own curated probe set.
+  Active detection > passive observation.
+
+**Active shaping.** As actively-shaped as Sprint 1's /prd, possibly
+more so. Trump drove:
+
+- The `auth_strategy` declarative class-attribute pattern from Q1
+  (agent had presented imperative-flag-conditional options).
+- The `source_filter` pattern in Q3, parallel to `auth_strategy`,
+  unifying the contract design.
+- The semver rules in Q4 with explicit MAJOR/MINOR/PATCH triggers,
+  forcing forward-compatible JSON schema discipline.
+- The 7-epic split (atomicity over symmetry) with explicit reasoning.
+- The csrf elevation to gated module mid-conversation, with
+  retroactive Epic 5 update.
+- The capability-axis-single-helper rule for `_common.py` extension.
+- The friction-as-binding decision for `--i-own-this-target`.
+- The cookie-equality detection list for same-user IDOR.
+- The testbed detection escalation to dedicated endpoint with
+  multi-field validation.
+- The error_leakage own-probe-set decision rejecting shared cache.
+- All ten cohort detection rules (admin signals, lockout signals,
+  stack-trace signatures, login-redirect patterns, named session
+  cookies, etc.).
+
+Agent led: 5 scope-opens framing, the option a/b/c presentation
+shape on most edges, the epic structure draft (push-back-on-shape
+mode), surfacing edges per story (~75 total).
+
+**Deepening rounds: zero.** Trump declined explicitly with rationale
+("Sprint 2 scope is dense enough; the locked epics give /spec
+sufficient detail to derive implementation contracts"). Same
+declining-discipline pattern as Sprint 1 /spec — the conversation's
+mandatory-beats-as-deepening was sufficient because the scope had
+already done the upstream work that deepening rounds normally surface.
+
+**Carryover for /sprint-2/spec.**
+
+- 7 epics, ~40 stories, all with acceptance criteria pre-locked.
+  /spec walks down each epic and produces implementation contracts.
+- 11 named architectural patterns from /spec carryovers list:
+  `capability-axis-single-helper`, `friction-as-binding`,
+  `no-false-alarm` vs `no-false-confidence`, `owner=epic-that-
+  declares-the-dataclass`, `miss-this-scan-hint-for-next-scan`,
+  `Sprint-3-promise-as-INFO-text-for-auto-carryover`,
+  `empirical-validation-before-escape-hatch`,
+  `audit-trail-records-user-typed-form`, plus three Sprint 1
+  carryovers (no-false-confidence, 50-line module cap, defer ≠ kill).
+- Open questions explicitly carried to /spec: throwaway sub-session
+  mechanism, `Target.urls` data shape, `scan_coverage` JSON internal
+  shape, HTML rendering shape for FIT3048 + auth-context badges,
+  --scan-both dedup implementation owner.
+- Sprint 3 carryover list (12 items) embedded in PRD's "What We'd
+  Add With More Time" — pre-built /sprint-3/scope.md input.
+- Locked PRD Invariants section at PRD bottom — must survive /spec
+  and /build (8 items including --auth-role decorative-only,
+  Mode enum value lock, evidence_hash formula, csrf gating).
+- The literal acceptance terminal output from scope.md is the
+  acceptance test for output-renderer items; /spec must not
+  invent alternative shapes for the rendering of FINDINGS or
+  COVERAGE blocks.
+
+**Trump-supplied /spec heuristics for the two △-flagged items**
+(captured at /prd close-out so they survive /clear):
+
+- *`Target.urls` data shape:* default to `List[Tuple[str, Source]]`
+  unless any of the 6 use sites needs forward-compat fields (Sprint
+  3+ might add `discovered_at`, `http_status`). Forward-compat
+  need → dataclass `List[ProbeURL]`; otherwise tuple is sufficient.
+- *Throwaway sub-session mechanism:* prefer dedicated
+  `ephemeral_login_form()` helper. Modifying `session_factory`'s
+  signature pollutes all callers; vanilla second `login_form()`
+  leaves ephemerality as a calling convention rather than a named
+  concept. Helper is cleanest.
+
+## Sprint 2 — /spec
+
+**Spec-entry state.** Most pre-resolved entry of any conversation in
+this project. /scope locked multi-session, double-flag brute_force,
+testbed, SCAN COVERAGE, two-endpoint Done, literal acceptance terminal
+output. /prd locked 7 epics × ~40 stories × ~75 inline edges × 8 PRD
+invariants × 11 named architectural patterns. Two △-flagged items
+(Target.urls shape, throwaway sub-session) carried explicit Trump
+heuristics from /prd close-out. Spec's job: translate acceptance
+criteria into implementation contracts (class signatures, function
+interfaces, file boundaries, phase ordering).
+
+**Conversation shape.** Mandatory beats walked epic-by-epic in PRD
+order with one merge (Epic 4+5 folded — both engine-level filter logic
+with cross-flag interaction). Per-epic format: 2-4 architectural
+surfaces explicitly flagged for Trump confirm; 4-7 implementation
+patterns marked bake-in. Consistent with Sprint 1 /spec's
+"mandatory-beats-as-deepening-rounds" shape — each beat surfaced
+proposals with deliberately-flagged sub-decisions, Trump confirmed or
+counter-proposed on each. Six epic walks (Epic 6 first because it locks
+types everything else uses, then PRD order: Epic 1 → 2 → 3 → 4+5 → 7).
+
+**Decisions made in /spec (not inherited from PRD):**
+
+*Module Contract (Epic 6):*
+- `run() -> None` (drops v1 `-> list[Finding]`). PRD-vs-actual
+  ambiguity resolved on invariant-enforceability grounds: engine-wrapped
+  callback is the ONLY path that injects auth_context, sets seen_in,
+  computes evidence_hash, acquires stdout lock, participates in dedup.
+  Module return-list bypasses every Sprint 2 invariant. Single-channel
+  discipline.
+- `finding_type` added as new Finding field. v1's `category`
+  (module-identity slug) ≠ FIT3048_CATEGORY_MAP keys
+  (per-finding-type slugs). Single-responsibility per dataclass field.
+  v1 retrofit extracts existing implicit type slugs at /spec, codifies
+  as map keys. Spec-locked, not /build-tunable.
+- `Source` enum at `webprobe/findings.py` with scope constraint:
+  pure type-definition module (dataclasses, enums, validation).
+  NOT permitted: I/O, processing, helpers acting on findings. Cross-sprint
+  scope discipline preventing junk-drawer expansion.
+- `Finding.fit3048_category: Optional[int] = None` during construction;
+  engine wrapper guarantees non-None at storage. Same pattern for
+  `auth_context` and `seen_in` (context-dependent). `evidence_hash`
+  is exception (self-contained, auto-computed in `__post_init__`).
+  Categorization rule: self-contained → __post_init__; context-dependent
+  → engine wrapper.
+- Engine state for auth_context: closure capture per-dispatch over
+  immutable values + designed-for-concurrency primitives
+  (_stdout_lock, GIL-atomic list.append). Avoids "current_X attribute"
+  thread-safety footgun. Spec note for Sprint 3+ multiprocessing
+  invalidation.
+- Three-phase engine pipeline: dispatch → dedup → render. Resolves
+  apparent contradiction between Story 3.2 inline-tease (twice for
+  --scan-both) vs Story 3.4 JSON dedup (once with merged seen_in).
+  Both correct because they occur at different phases.
+- `_common.py` final shape: 3 public functions (send, inject_param,
+  compare_responses) + DEFAULT_TIMEOUT module-level constant + v1
+  carryover build_units. v1's `send` renamed to `inject_param`;
+  Sprint 2 PRD-locked `send(url, *, session=None, **kwargs)` takes
+  canonical name. Capability-axis-single-helper discipline (3+ callers
+  → promote to _common).
+
+*Authentication & Session Setup (Epic 1):*
+- v1 thread-local `session.py` retired. v2 `session.py` is ~6 lines:
+  eager session-list factory. Three named retirement reasons (paths.py
+  unauth = no race surface; auth modules serial; threading.local()
+  doesn't survive fork → Sprint 3+ multiprocessing path invalidates).
+  v1 → v2 simplification is /spec doing its job.
+- `webprobe/auth.py` single file (subpackage premature for ~5 functions /
+  ~30-50 lines). Sprint 3+ SSO refactors to `auth/` subpackage.
+- `setup_form_login(verbose=False)` parameter added — caught the
+  scan-stream UX bug where ephemeral session would print confusing
+  duplicate "[+] Login confirmed" mid-scan. /prd didn't anticipate this.
+- Three private helpers in auth.py (_discover_login_form,
+  _build_login_payload, _validate_login_response) with testability
+  constraint: pure functions, must be unit-testable without mocking
+  requests.Session. Network I/O lives in setup_form_login main body.
+- `ephemeral_login_form()` resolves /prd △ for throwaway sub-session.
+  Reuses setup_form_login(verbose=False); session_factory signature
+  stays unchanged from v1 (no ephemeral=True parameter pollution).
+- ConfigurationError as third custom exception. Inter-flag invariants
+  live in consuming functions (auth.setup_baseline,
+  filter.validate_module_flags, discovery.validate_discovery_flags),
+  NOT in argparse. Engine catches at top level, exit code 2.
+- Phase 5 sub-phase abort/continue table explicit (5a/5b/5c/5f abort,
+  5d/5e continue). Each sub-phase's failure mode documented.
+
+*Discovery (Epic 2):*
+- `Target.urls = tuple[tuple[str, Source], ...]` resolves /prd △.
+  Trump's heuristic confirmed after use-site count (no use-site needs
+  forward-compat fields). Tuple, not list — Python's type system
+  enforces "MUST NOT mutate" via AttributeError on append.
+- `webprobe/discovery.py` single file with target.py refactor. target.py
+  keeps form/query_params discovery (v1 contract preserved); discovery.py
+  owns URL pool composition. Naming convention: `discover_<source>` for
+  metadata-rich Result objects (sitemap, robots); `discover_<source>_pairs`
+  for pure URL emitters (url_list, dynamic, curated).
+- Curated paths v1→v2 architectural shift (largest spec-level change in
+  Epic 2). PRD didn't make explicit; /spec derived from source_filter
+  contract + Story 6.3 "module body MUST NOT introspect engine state".
+  paths.py loses curated.txt loading; engine URL pool gains it. Four
+  payoff points (contract uniformity, file shrinks, COVERAGE accuracy,
+  cross-source dedup). PRD-implicit, spec-explicit.
+- Phase 0.5 inter-flag validation introduced. Phase 4.5 / 5f
+  authed-sitemap-discovery split (--use-sitemap-authed needs auth setup
+  complete). Phase ordering grows from v1's 6 phases to v2's 10+.
+- URL canonicalization scope lock: dedup-key only. Lowercase scheme/
+  netloc + path "/" if empty. NO query-string normalization. Stored URL
+  is user-typed form, not normalized variant. Audit-trail discipline
+  parallel to Story 5.5.
+
+*Output (Epic 3):*
+- ScanCoverage + 5 sub-dataclasses at `webprobe/coverage.py` (peer to
+  ScanMetadata for the JSON `scan` block). dataclass shape == JSON shape
+  via dataclasses.asdict(). Renderers + serialization both consume.
+- sha256 16-char canonical (Story 3.4.E1) / 8-char display split.
+  Renderer truncation; storage canonical. Data layer owns canonical
+  form; render layer owns display form.
+- ScanCoverage mutable during scan, frozen by convention after Phase 7.
+  Phase 8 read-only invariant. Engine asserts coverage.duration_seconds
+  + modules_fired populated before render starts.
+- HTML structure: `<article>` + `<header>` + `<dl>` semantic per finding
+  card (upgrade from v1 div-based pattern). OPERATIONAL_RISK chip in
+  `<header class="report-header">` ABOVE SCAN COVERAGE — screenshot-
+  readable critical signal. IDOR-conditional render expression in
+  exactly two locations (terminal.py + html.py), grep-verifiable.
+- `--json-out -` mode: terminal output routes to stderr (Unix
+  convention). Engine `_terminal_stream` attribute set in __init__.
+  colorama init with strip=not stream.isatty() handles 3 pipe scenarios.
+  Lock 6: NEVER bare print() in renderer code.
+- argparse argument_groups MUST use PRD-locked taxonomy verbatim.
+  /build can tune flag wording but MUST NOT rename groups.
+
+*Filtering & Risk Gates (Epic 4+5):*
+- `webprobe/filter.py` (not dispatch.py — filter is pre-dispatch
+  decision logic). 7 public functions, ~80-120 lines.
+- `webprobe/registry.py` + `@register` decorator — module discovery
+  pattern formalization. v1's hardcoded MODULES manifest replaced.
+  Auto-extends to Sprint 3+ additions: add module file with @register +
+  import in modules/__init__.py.
+- Multi-error gate-validation reporting. Lists ALL missing gate flags at
+  once (not first-error-wins). Extends Sprint 1 actionable-error
+  pattern: user fixes once, retries once.
+- Phase ordering Phase 2 / Phase 3.6 split (user-flag filtering vs
+  risk-gate filtering). Real ordering insight: risk-gate filtering
+  depends on testbed detection which requires HTTP, therefore must run
+  after Phase 3 connectivity check. Cross-flag gated-module-in-include
+  validation runs in Phase 0.5.
+- Testbed-bypass-replaces-risk-gates-NOT-hostname-validation invariant.
+  Two mechanisms orthogonal — validation checks user-input consistency,
+  testbed detection checks target-environment safety. Build mustn't
+  conflate.
+- `_matches_testbed_url_pattern` (precision rename from
+  `_looks_like_testbed_convention`). Deterministic URL pattern check,
+  NOT fuzzy heuristic.
+- `--i-own-this-target` rejects URL path/query in assertion shape
+  (input-shape validation before semantic). Wrapper script can't
+  silently "work" with wrong assertion shape.
+- Risk-gate banner with box-drawing frame for visual delimitation.
+- difflib.get_close_matches case-insensitive with explicit "Module names
+  are case-sensitive" hint. Strict accept + helpful suggestion.
+
+*Detection Modules (Epic 7):*
+- DATA_FILES class attribute on BaseModule + auto-load in `__init__`
+  + Phase 1 validation. Symmetrical with auth_strategy /
+  FIT3048_CATEGORY_MAP class-attribute pattern. Base loads canonical
+  form (stripped non-comment lines); module-specific post-processing
+  (regex compile, case folding) in module's own __init__ after
+  super().__init__(args) call.
+- DATA_FILES distinction: user-editable external files (extension
+  mechanism) vs module-internal frozensets (code constants, spec-locked).
+- Helper file extraction REACTIVE not pre-allocated. /build creates
+  `_<module>_helpers.py` only when module body crosses 50-line cap.
+  Estimated likely-helper-needed: error_leakage, session. Estimated
+  likely-fits: access_control, idor, csrf, brute_force.
+- Five cross-module module-body Locks: Lock 1 Finding kw_only=True
+  dataclass discipline; Lock 2 urljoin (no string concat); Lock 3
+  RequestException via _on_request_error hook (no bare except); Lock 4
+  args uniform injection (no per-module asymmetry); Lock 5 zero print()
+  in module bodies (grep-verifiable).
+- Edge case: `<form action="">` (CakePHP convention) means submit to
+  current URL — discover_dynamic_pairs MUST add target.url to dynamic
+  source list, NOT skip empty action. Team 157 form-bearing pages depend
+  on this.
+- v1 module retrofit checklist 9 steps × 6 modules. Step 9 (audit v1
+  print() calls — REMOVE ALL) was missing from initial draft; Trump
+  added it. v2 module bodies are pure Finding emitters; engine routes
+  all user-visible output through report_finding callback.
+
+**What was confident vs uncertain.**
+
+Trump was confident on essentially everything:
+- Stack additions (Flask, pyproject.toml + console_scripts) accepted
+  without pushback.
+- Spec architectural decisions (file locations, module boundaries,
+  dataclass shapes) confirmed with refinements that *strengthened*
+  the proposal rather than reframed it. Across ~30 spec surfaces,
+  zero rejections — refinements only.
+- Spec-vs-build line internalized from /prd entry. Throughout the
+  walk, Trump consistently deferred build-time tunables (wording,
+  thresholds, line counts) while pinning architectural invariants.
+
+Trump deliberately deferred (no uncertainty, just discipline):
+- Banner exact text + --help wording + verbose line format → /build.
+- paths.py pool sizing → /build Checkpoint B verification beat.
+- v1 internal type slugs → extracted at /spec walk, locked, not
+  /build-tunable.
+
+**Pushback received and how Trump handled it.**
+
+- *(Epic 1 (1F) argparse layer assumption.)* Agent spec'd
+  mutually-exclusive flag check in argparse layer; Trump pushed back
+  with named principle ("argparse expresses single-flag presence
+  cleanly but inter-flag relationships poorly"). Counter-proposal:
+  flag-combination invariants live in consuming module
+  (auth.setup_baseline, filter.validate_module_flags, etc.), not
+  argparse. Same pattern extended to discovery, brute_force, csrf
+  gates. ConfigurationError as third custom exception, exit code 2.
+- *(Epic 2 (2J) authed-sitemap ordering surfaced inline.)* Agent
+  initially put --use-sitemap-authed in Phase 4 alongside other
+  discovery; surfaced the ordering question inline. Trump confirmed
+  Phase 4 / Phase 4.5 split with abort/continue table.
+- *(Epic 3 (3F) print() routing.)* Agent proposed routing terminal
+  output to stderr in --json-out - mode; Trump confirmed with colorama
+  isatty-strip detail handling 3 pipe scenarios cleanly.
+- *(Epic 6 (F) dedup phase boundary.)* Agent wrote "engine teardown
+  (post-dispatch)"; Trump pushed back ("engine teardown is too
+  vague — spans inline-tease end through render"). Counter-proposal:
+  three explicit phases (dispatch → dedup → render). Resolved the
+  apparent inline-tease-twice vs deduped-once contradiction by phase
+  separation.
+- *(Epic 7 (7C) helper file pre-allocation.)* Agent proposed
+  inventory listing helper files for all 6 new modules; Trump pushed
+  back ("helper files are reactive extraction outcome, NOT pre-
+  allocated structure"). Counter-proposal: inventory marks "if needed"
+  for likely-helper modules (error_leakage, session); other 4 modules
+  no helper file unless /build observes overflow. Sprint 1's reactive-
+  helper discipline carried forward verbatim.
+- *(Epic 7 (7D) args injection asymmetry.)* Agent proposed
+  session/brute_force-only args injection; Trump pushed back with
+  Lock 4 (args uniform injection across ALL modules). Modules ignore
+  args if not needed; uniform dispatch beats selective injection.
+  Sprint 3+ adding modules doesn't reopen the question.
+- *(Epic 7 (7E) v1 print() audit.)* Agent's retrofit checklist had
+  8 steps; Trump added step 9 (audit existing v1 print() calls —
+  REMOVE ALL). Strengthens partial-scan philosophy: in v2, boundary
+  between "this is a finding" and "this is progress chatter" is fully
+  resolved — everything user-visible IS a finding. Module bodies
+  become pure Finding emitters. Build verification: grep -rn "print("
+  webprobe/modules/ returns zero matches.
+
+**Drift correction (Epic 3 / Epic 6):** Agent's (3G) confirm
+language conflated `evidence_hash` (self-contained — auto-computes in
+__post_init__ from constructor args) with `auth_context` / `seen_in` /
+`fit3048_category` (context-dependent — engine-wrapper-injected).
+Trump caught and corrected. Categorization rule locked: self-contained
+fields auto-compute in __post_init__; context-dependent fields are
+engine-wrapper-injected. evidence_hash NOT in engine-injected list.
+
+**Deepening rounds: zero (declined explicitly).** Same discipline as
+Sprint 1 /spec — mandatory beats themselves did the work of deepening
+rounds. Each beat surfaced proposals with 2-4 deliberately-flagged
+sub-decisions; Trump confirmed/refined/counter-proposed on each.
+Trump's framing: *"PRD has already done architectural depth work
+(8 locked invariants, 11 named patterns, 12 Sprint 3 carryovers).
+Spec's job is translating acceptance criteria into implementation
+contracts — class signatures, function interfaces, file boundaries,
+test plans. Not surfacing new design decisions. If any epic exposes
+PRD-level under-specification during spec walk, the response is to
+flag it back to /prd as a △."* PRD/spec boundary discipline.
+
+This is consistent with Sprint 1's payoff: deep PRD → leaner /spec
+conversation. Sprint 2's PRD was even deeper than Sprint 1's, so
+Sprint 2's /spec was correspondingly even leaner relative to its
+scope (7 epics vs 5).
+
+**Active shaping.** As actively-shaped as Sprint 1 /spec, possibly
+more so given Sprint 2's larger surface. Trump drove:
+
+- The auth-aware send() rename strategy (v1 send → inject_param;
+  PRD-locked send takes canonical name) with cost analysis (6-12
+  total send() calls across sqli/xss/traversal — single sed-style
+  rename pass).
+- The auth.py function inventory with PRD story attributions.
+- The ScanCoverage dataclass scope (mutable during scan, frozen by
+  convention; Phase 8 read-only assertion).
+- The findings.py scope constraint (pure type-definition module;
+  cross-sprint discipline preventing junk-drawer expansion).
+- The argparse-layer pushback with named principle ("inter-flag
+  relationships poorly expressed"); counter-proposal of consuming-
+  module ownership pattern. Extended to all gate validators.
+- The dedup phase boundary pushback ("engine teardown is too vague")
+  with three-phase explicit pin.
+- The 5 cross-module module-body Locks (kw_only Finding, urljoin,
+  _on_request_error, args uniform injection, zero print). Each Lock
+  came with named architectural principle.
+- The DATA_FILES uniform contract (base loads canonical form, modules
+  post-process; super().__init__ discipline; user-editable vs internal
+  constant distinction).
+- The reactive-helper-extraction pushback (inventory marks "if
+  needed", not pre-allocated).
+- The step-9 v1 print() audit addition to retrofit checklist.
+- The evidence_hash drift correction (categorizing self-contained vs
+  context-dependent fields).
+- The multi-error gate-validation pattern (lists ALL missing at once,
+  extends actionable-error discipline).
+- The testbed-bypass-orthogonality invariant (testbed bypass replaces
+  risk gates NOT hostname validation).
+- The path/query rejection in --i-own-this-target assertion (input-
+  shape validation before semantic).
+- The box-drawing frame for risk-gate banner.
+- The case-insensitive Levenshtein with case-sensitive note hint.
+
+The agent led: PRD ambiguity surfacing (run() return type, Story 6.2
+construction-vs-serialization, FIT3048 lookup mechanism), 7-phase →
+10-phase ordering proposal (with sub-phases for testbed/risk-gates/
+authed-sitemap), the (a)/(b)/(c) framing for most architectural
+choices, the v1 code survey for retrofit slugs.
+
+**Spec → /build line, made explicit (carried from /prd).** Same
+framing as Sprint 1 /spec: "an LLM agent could implement this without
+making arbitrary choices about architecture" — not "every literal
+constant is fixed." Trump preserved the line consistently across all
+seven epics. Items deferred to /build (~7 items in Open Issues
+section): SQLi DIFF_THRESHOLD, banner/help wording, paths.py pool
+sizing, verbose [.] line format, module-error tips, --scan-both mode-
+line flavor, HTML CSS palette refinement.
+
+**Carryover for /checklist.**
+
+- Walk down spec's section list and produce one checklist item per
+  granular subsection. Spec written with /checklist addressability in
+  mind — every subsection is a candidate item.
+- Decide build mode (step-by-step vs autonomous) up front; Sprint 1
+  /reflect pattern (autonomous + named checkpoints) likely applies
+  given Sprint 2's larger surface.
+- Pre-build verification: BaseModule contract test (instantiate every
+  module class, validate class attributes, dispatch a no-op Target,
+  assert no exceptions) is worth its own checklist item.
+- 50-line constraint is checklist verification step (Checkpoint B),
+  not build-time aspiration.
+- Build-time grep verifications worth their own checklist items:
+  Lock 5 (zero print() in modules); IDOR-conditional render
+  expression in exactly two locations.
+- Phase 0.5 / Phase 5 abort tables are /checklist verification beats.
+- Testbed item (3.5) precedes Sprint 2 detection module items —
+  testbed is acceptance harness for v2 module validation.
+- v1 module retrofit checklist (Epic 7 (E), 9 steps × 6 modules) =
+  6 atomic /checklist items.
+- v1→v2 architectural shift items (curated paths move, session.py
+  rewrite, target.py contract preservation) are atomic /checklist
+  items, not folded into module retrofits.
+- 21 PRD loop-backs / spec additions documented at spec.md tail —
+  /reflect should propagate back to a PRD amendment if Sprint 2 PRD
+  is re-published.
+
+**One real spec-level risk observed and named, not eliminated.**
+
+Sprint 2 /spec adds substantial new framework code beyond v1: auth.py,
+discovery.py, filter.py, registry.py, coverage.py, output/json_render.py,
+testbed/. Plus Engine class refactor + 6 new detection modules + v1
+module retrofit. Sprint 1 /spec was ~1500 lines and produced ~830 lines
+of code. Sprint 2 /spec is ~2600 lines and likely produces ~1500-2000
+lines of code. /checklist must size atomic items conservatively;
+/build estimate from /scope (13-16 hr) may need re-evaluation at
+/checklist.
+
+This is observed, named, and has the explicit recovery path /scope set:
+P1 cuts (drop items 7, 9, 18, 26-28 in priority order if hitting hour
+12 with P0 incomplete). Trump set the estimate himself with eyes open;
+the recovery path is in place.
+
+**Trump-supplied /checklist heuristics (captured at /spec close-out so
+they survive /clear):**
+
+*Build mode:* autonomous + named checkpoints, sustaining Sprint 1
+pattern. Estimated 14-16 checkpoints (vs Sprint 1's ~10). /checklist
+derives count from natural verification gates already embedded in
+spec: Phase 0.5/Phase 5 abort tables, 50-line wc -l audit, Lock 5
+zero-print() grep, IDOR-conditional render exactly-2-locations grep,
+Module retrofit 9-step × 6 modules.
+
+*Sequencing primitive — refined first 5 checkpoints (corrects /spec
+handoff's initial slice proposal):*
+
+1. **Foundation: Module Contract dataclasses.** findings.py
+   (Source enum + ALL_SOURCES, Finding kw_only=True), coverage.py
+   (ScanCoverage + sub-dataclasses), registry.py (MODULE_REGISTRY +
+   @register decorator).
+2. **BaseModule refactor.** DATA_FILES + auto-load, args uniform
+   injection (BaseModule.__init__(args=None)), _on_request_error
+   helper, Phase 1 validation extension.
+3. **Engine class refactor + auth.py.** Engine module-functions →
+   class. auth.py 4 setup functions + 3 helpers. Phase ordering
+   0/0.5/1/2/3/3.5/3.6/3.7/4/4.5/5(5a-5f)/6/7/8/9 implementation.
+4. **Testbed harness.** Flask app + /__webprobe_testbed__/health
+   endpoint. Cookie-mode acceptance fixture for session module's
+   throwaway sub-session test. filter.detect_testbed() validation.
+5. **First vertical slice: access_control module.** Simplest
+   auth_required module (Story 7.1). Validates Module Contract
+   end-to-end (auth_strategy, FIT3048_CATEGORY_MAP, DATA_FILES,
+   run()->None). Validates testbed bypass (Story 5.4). First
+   end-to-end Finding emission with engine-injected auth_context +
+   seen_in + fit3048_category.
+
+After first vertical slice:
+- 6-8: Epic 2 (discovery) + Epic 3 (output) + Epic 4+5 (filter + gates)
+- 9-12: Remaining 5 new modules in PRD complexity order: idor → csrf
+  → error_leakage → session → brute_force (brute_force last because
+  most operational risk + needs lockout_signals.txt testbed validation)
+- 13-15: v1 module retrofit × 6 (parallelizable; one checkpoint per 2
+  modules)
+- 16: Integration test + run-end summary completeness check
+
+**Critical sequencing insight (caught at /spec close-out):**
+Module Contract dataclasses MUST precede auth.py. auth.py builds
+requests.Session AND constructs setup functions whose return values
+flow into Finding(auth_context=...) and ScanCoverage. Without Module
+Contract types in place, auth.py would be written against placeholder
+types and require two-pass touching. Single-write discipline.
+
+*PRD amendment decision: DON'T amend now. /reflect at end of Sprint 2
+build decides.*
+
+Categorization of the 21 /spec loop-backs:
+- ~15 implementation specifics (registry pattern, @register, kw_only,
+  urljoin, RequestException uniform, reactive helpers, naming
+  refinements, DEFAULT_TIMEOUT, etc.). PRD is product-behavior doc,
+  not implementation-pattern doc — these stay spec-level.
+- ~3 user-visible behavior refinements (cross-flag lists ALL missing
+  gates vs first-error-wins, banner box-drawing frame,
+  --i-own-this-target rejects path/query). MAY be PRD-worthy but need
+  empirical validation in /build first — pattern #7 from /prd carryover
+  (`empirical-validation-before-escape-hatch`).
+- ~3 architectural decisions (testbed-bypass-orthogonality truth
+  table, evidence_hash self-contained __post_init__-computed,
+  DATA_FILES uniform contract). Spec-level appropriate; not PRD
+  material even after build.
+
+Cost of amending PRD now: doubles edit work + introduces PRD↔spec sync
+risk. /reflect post-build is the right gate — empirical /build evidence
+determines which user-visible refinements actually improved UX (worth
+promoting) vs which were neutral/cosmetic (stay spec-level).
+
+**△ flag handling at close-out (Trump validated both):**
+- △1 build estimate vs scope mismatch: real, recovery path (P1 cuts)
+  in place, decision deferred to /checklist sequencing.
+- △2 closure-capture GIL atomicity: real but Sprint 3+ concern,
+  inline-documented spec note is correct move (named risk captured for
+  future-Trump). Sprint 2 doesn't need to act.
+
+## Sprint 2 — /checklist
+
+**Checklist-entry state.** The most pre-resolved /checklist entry on
+this project: /spec close-out handed over (a) build-mode pre-commit
+(autonomous + named checkpoints, sustaining Sprint 1 pattern), (b)
+estimated checkpoint count (14-16), (c) full first-five sequencing
+slice, (d) outline of items 6-16, (e) critical sequencing insight
+(Module Contract dataclasses MUST precede auth.py — single-write
+discipline), (f) named △ risk (Sprint 2 ~70% larger than Sprint 1) with
+recovery path (drop P1 items 7/9/18/26-28). /checklist's job: confirm
+those carryovers, fill in the contract details (spec ref, acceptance,
+verify) per item, sanity-check the count vs the build budget, lock in
+git/verification cadence.
+
+**Conversation shape.** Five mandatory questions (sequencing logic /
+build mode + checkpoint density / git cadence / Devpost submission /
+walk through items), one deepening round (modified Q1 + Q2 + Q3 lock
++ Q4/Q5 deferred). Each mandatory question Trump elected to make
+substantively richer than my initial framing — not "yes/no" but
+"yes/no with refinement and named architectural principle." Six real
+pushbacks landed in /checklist (vs ~4-5 in /spec), each one tightening
+a framing where I'd presented a shallow trade-off.
+
+**Decisions made in /checklist (not inherited from /spec):**
+
+*Sequencing primitive — first vertical slice and Output ordering (Q1):*
+- Confirmed (a) integration-before-presentation: items 6-8 (discovery /
+  output / filter+gates) build AFTER item 9 first-vertical-slice
+  (access_control end-to-end against testbed). Stateful pipelines must
+  work before stateless transformations are built; otherwise
+  transformations build against placeholder data and break when real
+  data emerges (two-pass risk). Trump's hidden-cost enumeration:
+  hand-constructed Finding fixtures drift from real module emissions;
+  ScanCoverage fixtures re-implement parts of auth.py; "done but needs
+  retouch" checkpoints distort progress tracking.
+- Refinement: debug-print verification artifact at item 9 — engine
+  wrapper instruments `print(json.dumps(asdict(f), indent=2),
+  file=self._terminal_stream)` after injection, before
+  `self._findings.append(f)`. Removed at item 13 when json_render
+  ships. Validates Module Contract types + engine wrapper injection +
+  evidence_hash __post_init__ correctness without prematurely
+  building visual surface. Lock 5 preserved (debug-print is wrapper
+  code, NOT module body code).
+- Considered (c) hybrid (mini JSON renderer in item 5/9), rejected by
+  Trump — would inflate item beyond atomic, conflates integration
+  test with presentation.
+
+*Checkpoint density + dual role for B (Q2):*
+- 5 checkpoints (A through E), density 2x Sprint 1's (5/16 vs 3/17 =
+  ~3 items/gap vs ~6 items/gap). Density scales inversely with defect
+  blast radius, which scales with surface increase per /spec △1.
+- Trump's renumbering-robust pushback: anchor checkpoints to
+  architectural phase boundaries, NOT item numbers. "Checkpoint after
+  item 5" becomes ambiguous if /build splits item 5 into 5a/5b/5c;
+  "Checkpoint after first vertical slice complete" is robust. Item
+  numbers in checklist serve as `Roughly: after item N` hints, not
+  binding anchors.
+- Checkpoint B explicit dual role (most important gate of Sprint 2):
+  Role 1 INTEGRATION ACCEPTANCE (inspect debug-print JSON for contract
+  shape correctness) + Role 2 HOUR BUDGET REVIEW (compute actual hours
+  vs proportional estimate; if >×1.5 trigger P1 cut dropping items
+  17/18/19). Role 2 placement: P1 cut decision needs empirical
+  evidence (actual hours), available first at Checkpoint B AND latest
+  safe point to cut (items 17-19 not yet started). Operationalizes
+  /spec △1 named recovery path with concrete trigger condition.
+
+*Git commits + atomic boundary + bisectability (Q3):*
+- (β) one-commit-per-atomic-acceptance-unit, NOT one-commit-per-item-
+  number. Renumbering-robust principle threaded across checkpoints
+  AND commits AND item splits — single architectural axis.
+- Trump's bisectability operational reframing: my comparison "(α)
+  cosmetic git log; (β) tidy revert blast radius" understated (β)'s
+  case. Real (β) Pros: bisect precision (single failing commit =
+  single atomic work unit, narrow debug context); revert blast radius
+  = defect blast radius; renumbering-robust consistent with checkpoint
+  anchor. (α)'s "log mirrors checklist 1:1" is cosmetic preference,
+  not operational.
+- New `refactor:` commit prefix for v1 module retrofit (semantically
+  exact match per Conventional Commits — code structure changes,
+  behavior unchanged). Sustains Sprint 1's `feat:`/`chore:`/`docs:`
+  taxonomy. Enables `/reflect`-time `git log --grep='^refactor:'` to
+  surface all v1 migrations distinctly from `feat:` v2 net-new.
+- Atomic-commit boundary documented as semantic (atomic acceptance
+  unit), NOT syntactic (file count). Three rules: every commit leaves
+  repo importable; every commit completes single verification step
+  end-to-end; multi-file commits correct when files mutually dependent.
+
+*Devpost (p)/(q) shape + scope amendment + process-notes template (Q4):*
+- (p) confirmed: /build phase ends deterministically at engineering
+  completion, decoupled from Iteration 2 deployment. Endpoint A is the
+  final checklist item; Endpoint B becomes a `/schedule` candidate
+  routine (post-curriculum follow-up).
+- (α) confirmed for semver: tag v2.0.0 directly at Endpoint A (NOT
+  v2.0.0-rc.1). Trump named the principle: rc.1 anchor (release-
+  candidate-pending-validation) loses its referent under (p) shape;
+  testbed-validated IS the validation gate. /scope amendment captured
+  at scope.md tail (Amendment 1 — semver progression supersession),
+  parallel to /spec's 21 loop-backs at spec.md tail. Amendment, not
+  silent drift.
+- (γ) confirmed for process-notes: /build owns autonomous-completion
+  summary. Trump added 3-part template specification — "What got
+  built" (factual scope summary) + "Notable decisions during build"
+  (with checkpoint refs) + "Open at end of /build" (input pile for
+  /reflect). Without template, prerequisite passes vacuously while
+  starving /reflect.
+
+*Five-field format + estimated time + foundation 3-way split (Q5):*
+- Estimated time field added per item; cumulative sum in checklist
+  header for sanity-check vs /scope budget. Q1 split discretion
+  upgraded from MAY to MUST when estimate >30 min.
+- Trump's foundation-pairing pushback: my Item 1+2 pairing (findings.py
+  + coverage.py + registry.py paired) was syntactic-similarity-driven
+  (both "foundation shells"), NOT semantic-dependency-driven (coverage
+  and registry are mutually independent — neither imports the other).
+  Violates Q3's bisectability principle. Split to 3 separate items.
+  Net: 16 → 17 items.
+- Per-item refinements: Item 1 SEVERITY_ORDER values explicit + cap
+  clarification ("informational, not hard cap"); Item 2 TYPE_CHECKING
+  rationale documented; Item 4 (renumbered) tempfile-based verify
+  command (no repo pollution from prior `mkdir webprobe/data/_smoke`
+  approach), full DATA_FILES integration deferred to Item 10
+  (access_control with real fixtures).
+
+*MUST SPLIT discipline + 23-item count emergence:*
+- After applying MUST SPLIT rule across items 5/6/10/11/12/14/17/18,
+  count grew from /spec carryover's rough 16 to /checklist's empirical
+  23. Trump confirmed 23 (rejected both my fold proposals to compress
+  back to 22). Reasoning: folding 5+7 (Engine + auth-wiring)
+  conflates three architectural phases into one commit, violates Q3
+  single-architectural-concern-per-commit principle. Folding v1
+  retrofit to 6 single-module items wastes commit ceremony on
+  ~10-15 min mechanical work below atomic floor.
+- Cumulative time: 820 min lower bound + 160 min split overhead +
+  100 min checkpoint overhead = 18.0 hr lower bound. Trump's
+  realism note: ×1.3-1.5 estimation overhead → 23-27 hr realistic.
+  P1-cut form: ~22.2 hr realistic. Both fit revised 24-32 hr budget.
+
+*Q1 deepening — testbed fixture completeness audit (9 gaps + cross-
+cutting):*
+- Trump named the silent failure category: "module ran clean but
+  couldn't fire because testbed lacked differentiating fixture."
+  Eliminates the failure category by deliberate per-module testbed
+  endpoint specification.
+- 9 gaps surfaced and resolved: csrf form discovery (Gap 1), user
+  enumeration differential (Gap 2), stack-trace own-probe-set
+  endpoint (Gap 3), post-logout cookie replay endpoint (Gap 4),
+  session fixation mechanism (Gap 5), logout URL discovery scope
+  (Gap 6), curated path testbed exposure (Gap 7), traversal vuln
+  exposure (Gap 8), discovery dynamic-source empty-action edge case
+  (Gap 9). Plus cross-cutting (γ): SESSION_COOKIE_NAME='PHPSESSID'
+  via custom SessionInterface, mimics real-target landscape (PHP/
+  CakePHP/Laravel) per /scope FIT3047 anchor.
+- Trump's named pattern: testbed-shape-mimics-target-not-implementation.
+  Testbed's choice of Flask is implementation detail; testbed's
+  exposed surface mimics real target ecosystem. (δ) "add 'session' to
+  the frozenset" deferred to Sprint 3 PRD-level scope question.
+- Gap 5 binary call (i)/(ii). Trump considered (iii) third option
+  ("rely on Flask default behavior to expose fixation"), worked it
+  through, found impossible — Flask's signed-cookie session is
+  fixation-resistant by accident (cookie value is sha256-signed over
+  payload, so payload change naturally rotates cookie). Real fixation
+  requires server-side session storage with stable session ID across
+  auth boundaries.
+- Locked Gap 5 (i): build custom FixationVulnerableSessionInterface
+  (~25 lines including bonus coverage). Single implementation closes
+  3 module fixtures: session.session_fixation + headers.cookie_no_httponly
+  (httponly=False intentionally exposes cookie no-HttpOnly flag) +
+  auth.detect_shared_session (PHPSESSID cookie name in
+  _SHARED_SESSION_COOKIE_NAMES frozenset). Bonus-coverage observation
+  is the kind of /spec-level architectural insight that makes the
+  testbed a genuinely complete fixture, not a sketch.
+- Item 8 splits to 8a (stateless endpoints, 15 min) + 8b (stateful
+  endpoints + custom session interface, 30 min) per atomic-boundary
+  call. Bisect precision on testbed bugs improves: stateless route
+  bugs vs session-management bugs land in different commits.
+
+*Q2 helpers wording lock:*
+- "Likely needed" wording in items 15/17/18 was drift — contradicts
+  spec.md's "REACTIVE not pre-allocated" discipline. Replaced with
+  "extracted IF AND ONLY IF module body exceeds 50 lines after run()
+  implementation" + "informational reference, not commitment"
+  qualifier on the likely-extraction estimate.
+
+*Q3 Sprint 1 acceptance reproduction lock:*
+- Tier 1/2/3 fallback chain at Checkpoint E. Tier 3 (testbed-only v2
+  acceptance) always available, never blocks on external dependency.
+  Tier 1 enabled by Item 8a/8b's complete fixture surface — testbed
+  becomes acceptance fixture for ALL 12 modules (6 v1 + 6 v2), not
+  just the 6 v2 modules. Item 8 reframed: "build Flask app whose
+  endpoints constitute acceptance fixtures for ALL detection modules,"
+  not "build Flask app."
+
+*Q4/Q5 defer:*
+- Q4 (dedup tuple precision vs minimalism) defer to /build/reflect —
+  implementation-detail readability call, not spec architectural gap.
+- Q5 (Lock 5 grep verification fragility) defer to /build — verification
+  step refinement that build naturally surfaces if false-positive
+  appears. AST upgrade is the precise version; grep suffices until
+  observed insufficient.
+
+**Total artifacts produced:**
+- `docs/sprint-2/checklist.md` — 23 items, five-field format with
+  Estimated time, 5 named checkpoints anchored to architectural
+  boundaries, header documenting build mode + commit cadence + atomic-
+  commit boundary + MUST SPLIT rule + 3-part process-notes template +
+  cumulative time tally + P1 cut decision logic + extensive notes for
+  build agent (testbed-fixture-grade, debug-print at item 9 removed
+  at item 13, Lock 5 grep verification, helper extraction reactive,
+  Tier 1/2/3 fallback for v1 acceptance).
+- `docs/sprint-2/scope.md` Amendment 1 (semver progression
+  supersession) appended at scope.md tail.
+
+**What was confident vs uncertain.**
+
+Trump was confident on essentially everything substantive:
+- Build mode autonomous + checkpoints (pre-locked from /spec
+  carryover, no surprise).
+- All 9 testbed gaps + cross-cutting (γ) accepted as proposed.
+- 23-item count + both fold rejections + retrofit pairing structure.
+
+Trump's uncertainty surfaced exactly once and was substantive: Gap 5
+(SessionInterface scope). He surfaced (iii) third option, worked
+through it, ruled it impossible, then locked (i) with concrete
+SessionInterface implementation. Demonstrates the checklist-level
+discipline of "considered alternatives" not as performative but as
+real engineering judgment.
+
+Trump deliberately deferred (no uncertainty, just discipline):
+- Q4 dedup tuple precision → /build's call
+- Q5 grep AST upgrade → /build's call when surfaced
+- (δ) Flask 'session' cookie name → Sprint 3 PRD scope question
+
+**Pushback received and how Trump handled it.**
+
+Six real pushbacks across /checklist's mandatory + deepening rounds:
+
+- *(Q1 first vertical slice framing.)* Agent presented (a) vs (b) with
+  shallow trade-off; Trump deepened the (a) argument with named
+  principle "integration-before-presentation," enumerated hidden
+  costs of (b) beyond what I'd flagged (fixture drift, fixture
+  complexity, progress-tracking distortion), proposed and rejected
+  (c) hybrid himself, locked (a) with debug-print verification
+  artifact refinement.
+- *(Q2 checkpoint anchor framing.)* Agent proposed checkpoints "at
+  items N/M/...". Trump pushed back: "Checkpoint after item 5 becomes
+  ambiguous if /build splits item 5 into 5a/5b/5c. Checkpoint after
+  first vertical slice complete is renumbering-robust." Counter-
+  proposal: anchor checkpoints to architectural phase boundaries,
+  item numbers are advisory hints. This principle then propagated to
+  Q3 commits and Q5 item splits — single architectural axis.
+- *(Q2 Checkpoint B dual role.)* Agent didn't surface Role 2 hour-
+  budget review. Trump added it explicitly with concrete trigger
+  condition (actual > expected × 1.5 → drop items 17/18/19),
+  operationalizing /spec △1's named recovery path.
+- *(Q3 bisectability framing.)* Agent's (α)/(β) trade-off framing
+  understated (β)'s case as "tidy revert blast radius" (cosmetic-
+  sounding). Trump reframed as bisectability + revert blast radius
+  = defect blast radius + renumbering-robust consistency — operational
+  Pros, not preference Pros. Plus added `refactor:` prefix taxonomy
+  for v1 retrofit + atomic-commit boundary documented as semantic
+  (acceptance-unit) not syntactic (file count).
+- *(Q4 semver deviation.)* Agent surfaced (α)/(β) trade-off but
+  framed as "deviation." Trump pushed back: "deviation drift accumulates;
+  amendment captures supersession." Counter-proposal: edit scope.md
+  tail with Amendment 1 explicitly. Same pattern as /spec's 21 loop-
+  backs at spec.md tail. Plus 3-part process-notes template (γ
+  refinement) — "without template, prerequisite passes vacuously
+  while starving /reflect."
+- *(Q5 Item 1+2 pairing.)* Agent's foundation-pairing was syntactic-
+  similarity-driven (both "foundation shells"); Trump pushed back
+  with semantic dependency check (coverage and registry are mutually
+  independent — neither imports the other). Counter-proposal: split
+  to 3 separate items. Plus refinements per item (SEVERITY_ORDER
+  values, TYPE_CHECKING rationale, tempfile verify command).
+
+**Drift correction (Q5 helpers wording):** Agent's items 15/17/18
+contained "Helpers likely needed in `_<module>_helpers.py`" — drift
+from spec.md's REACTIVE-not-pre-allocated discipline. Trump caught
+during Q2 deepening lock and replaced wording with "extracted IF AND
+ONLY IF module body exceeds 50 lines" + "informational reference, not
+commitment" qualifier on the likely-extraction estimate. Spec
+discipline preserved through wording precision.
+
+**Deepening rounds: one (Q1 modified — Q2 + Q3 lock now, Q4 + Q5
+deferred).** Trump's asymmetric handling per-question was its own
+discipline: Q1 architectural (testbed surface for items 15/17/18,
+silent failure category) gets full deep walk; Q2 mechanical fix
+(spec wording drift); Q3 mechanical fallback chain (Tier 1/2/3); Q4
+implementation readability call → /build/reflect; Q5 verification
+fragility → /build. Same discipline as /spec close-out: "if any epic
+exposes PRD-level under-specification during spec walk, the response
+is to flag it back to /prd as a △." /checklist applied the analog:
+"if any item exposes spec-level under-specification, flag it back to
+/spec OR resolve at /checklist with explicit amendment captured at
+spec.md/scope.md tail." Q1 result: 9 gaps + cross-cutting + Gap 5 (i)
+SessionInterface implementation, all locked into Item 8a/8b spec.
+
+**Active shaping.** Most actively-shaped /checklist of any project so
+far. Trump drove:
+
+- The renumbering-robust principle (Q2), then propagated it to commits
+  (Q3) and item splits (Q5) as single architectural axis.
+- The Checkpoint B dual role with concrete trigger condition (Q2)
+  operationalizing /spec △1.
+- The bisectability operational reframing (Q3) with `refactor:`
+  prefix taxonomy + atomic-commit boundary semantic definition.
+- The /scope amendment vs drift discipline (Q4) with concrete
+  Amendment 1 text supplied.
+- The 3-part process-notes template (Q4) preventing vacuous
+  prerequisite pass.
+- The Estimated time field + MUST SPLIT hard rule (Q5) + the
+  Item 1+2 syntactic-vs-semantic-pairing pushback.
+- The testbed-shape-mimics-target-not-implementation pattern (Q1
+  cross-cutting γ) with named architectural principle.
+- The Gap 5 (i) SessionInterface concrete spec with bonus-coverage
+  observation (one implementation closes 3 module fixtures).
+- The Item 8a/8b atomic-boundary split (stateless endpoints
+  separately from stateful + sessions) for bisect precision on
+  testbed bugs.
+- The realistic vs lower-bound time estimation framing (×1.3-1.5
+  overhead).
+- The "likely needed" → "if and only if + informational reference"
+  helpers wording fix (Q2 deepening).
+- The Tier 1/2/3 fallback chain for Sprint 1 acceptance reproduction
+  (Q3 deepening) with Tier 3 always-available guarantee.
+
+The agent led: (a)/(b) framing on most architectural choices, item
+walkthrough five-field format proposal, cumulative time math,
+testbed gap enumeration (Trump confirmed 9-of-9 + added Gap 5
+SessionInterface concrete spec).
+
+**One real /checklist-level risk observed and named, not eliminated.**
+
+23 items with 8 MUST SPLIT annotations means /build will accumulate
+30+ commits across items 5/6/10/11/12/14/17/18 splits. Bisect remains
+precise per Q3 (β), but reading the commit log requires patience —
+git log without filtering will show ~30+ commits across ~24 hr build.
+`/reflect` should evaluate whether commit-density was operationally
+useful (bisects fired, blast radius matched defects) or cosmetically
+heavy (no bisect needed, log just longer to scan).
+
+This is observed, named, and accepted — the trade-off favors bisect
+precision over log density when defect-cost scales with surface
+increase per /spec △1.
+
+**Carryover for /build.**
+
+- Use the /scope Amendment 1 — tag v2.0.0 (NOT v2.0.0-rc.1) at
+  Endpoint A. Iteration 2 audit produces v2.0.1 patches if needed,
+  never blocks v2.0.0.
+- Item 8a/8b is the load-bearing testbed harness — testbed IS the
+  integration acceptance fixture for ALL 12 modules (silent failure
+  category defended against by deliberate per-module endpoint
+  specification).
+- Checkpoint B is the most important gate — Role 1 inspects
+  debug-print JSON; Role 2 computes hour budget vs proportional
+  estimate, decides P1 cut formally if actual > expected × 1.5.
+- Process-notes `## Sprint 2 — /build` section follows 3-part
+  template strictly: "What got built" (factual) + "Notable decisions"
+  (with checkpoint refs) + "Open at end of /build" (input pile for
+  /reflect). Vacuous "build done" passes the prerequisite but starves
+  /reflect.
+- Renumbering-robust framing throughout: when /build splits item N
+  into Na/Nb/Nc, checkpoints reference architectural completeness
+  ("after Module Contract foundation locked"), item numbers are
+  advisory hints. Each split sub-item gets its own commit per (β).
+- Lock 5 grep verification at item 22 ALWAYS sweeps all 12 module
+  bodies (final integration check before Checkpoint E).
+
+---
+
+## Sprint 2 — /build (deviations accumulator, /reflect input pile)
+
+Final 3-part template (What got built / Notable decisions / Open at end of /build) lands at Item 23. Until then, /build deviations accumulate here for /reflect.
+
+**Build deviation #1 — colorama 0.4.6 API mismatch (Item 5a).**
+Spec writes `colorama.init(wrap_stdout=False, strip=...)`; real API uses `wrap=False` and rejects mixed-arg combinations (`ValueError: wrap=False conflicts with any other arg=True`). Engine `__init__` uses TTY-conditional `colorama.init(...)` to preserve spec intent. Spec wording should update; behavior unchanged.
+
+**Build deviation #2 — `_LoginForm` private dataclass (Item 6a).**
+v1 `Form` (in `findings.py`) has a single `fields: dict[str, str]` and isn't shaped for the auth pipeline's user/pass/hidden split. Auth-internal `_LoginForm` dataclass in `auth.py` solves this without polluting `findings.Form`. Architectural decision; spec didn't mandate either approach.
+
+**Build deviation #3 — `fit3048_category=1` for engine-emitted findings (Item 7).**
+Engine-emitted INFO findings (Phase 5d shared-session, Phase 5e session-ambiguous, Phase 4 wildcard-intents) inject `fit3048_category` directly because no `FIT3048_CATEGORY_MAP` exists for engine-level findings. Picked Category 1 (operational/observability bucket). Defensible; spec silent on engine-emitted finding category mapping.
+
+**Build deviation #4 — `_common.send` rename to `inject_param` (Item 9).**
+v2 `send(url, *, session=None)` collides with v1's `send(session, url, ...)` positional signature. Renamed v1 `send` → `inject_param`. v1 sqli/xss/traversal still *import* `send` (atomic-import gate passes) but their call sites break if exercised. Items 20-22 retrofit repairs. v2 path verified working.
+
+**Build deviation #5 — `_LoginForm` POST GET handler added to testbed (Item 8b/9 boundary).**
+`setup_form_login` does a `GET login_url` first to discover the form. Original Item 8b only spec'd `POST /login`. Added `GET /login` returning a minimal HTML form. Folded into the Item 9 entry-point commit. Testbed acceptance shape unchanged; agent decision.
+
+**Build deviation #6 — Phase 0.5 vs Phase 3.5/3.6 ordering (Item 14a → Checkpoint C fix).**
+Item 14a placed gated-module-in-include validation in `validate_module_flags` at Phase 0.5 — but Phase 0.5 is HTTP-blind, so it raised `ConfigurationError` before Phase 3.5 could probe `/__webprobe_testbed__/health` and bypass risk gates. The vertical slice from Item 9 (`python3 -m webprobe http://localhost:9999 --include-modules access_control`) broke at Checkpoint C: testbed not detected, gated-include rejected.
+
+Surfaced by Trump at Checkpoint C with exact repro: testbed health endpoint serves `200 OK + {"webprobe_testbed": true}` correctly, but webprobe never gets to probe it because Phase 0.5 fires first.
+
+**Fix A applied** (Trump's preferred — clean semantic separation):
+- `validate_module_flags` becomes flag-shape coherence only (mutex, name validation, parse). No HTTP needed.
+- Gated-module-in-include check moves into `filter_modules_by_risk_gates` (Phase 3.6), AFTER `is_testbed` is known.
+  - Testbed → bypass returns `(modules, [])` silently.
+  - Non-testbed → multi-error `ConfigurationError` listing all missing gate flags at once (extends-actionable-error pattern preserved per Story 4.1 / Q5 lock).
+- Engine `run_pipeline` wraps `_phase_3_6` in try/except `ConfigurationError` → `sys.exit(2)` matching the previous Phase 0.5 hard-error contract.
+
+**Fix B (deferred error queue) rejected:** would have kept Phase 0.5 surface signature unchanged but introduced "deferred error queue" mechanics — awkward control flow and a new state-tracking concern.
+
+Re-verification (post-fix):
+- Test 1 (vertical slice on testbed): `evidence_hash e52ebb5e21f8a161` matches Item 9 exactly. Item 9 vertical slice fully restored. ✓
+- Test 2 (non-testbed banner against `https://example.com`): `ERROR: ...access_control: requires --i-own-this-target=<hostname>` emits as expected. ✓
+- Test 3 (multi-error against synthetic 3-module set): all 3 modules listed in single error message; testbed bypass keeps all 3 silently. ✓ (Direct unit test against `filter_modules_by_risk_gates` because `brute_force`/`csrf` aren't yet `@register`'d — Items 16/19 land them; the end-to-end CLI test will then work without modification.)
+
+**Lesson for /reflect:** "Phase boundary = HTTP capability boundary" should be a Module Contract lock, not just an emergent property. Phase 0.5 (no HTTP), Phase 3 (connectivity required), Phase 3.5+ (testbed-aware) is a layered capability cake — putting validation in the wrong layer creates impossible logic gates. Add to spec.md Module-Body Invariants as a documented invariant.
+

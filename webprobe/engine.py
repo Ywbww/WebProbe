@@ -780,7 +780,13 @@ class Engine:
         self._phase_2()
         self._phase_3()
         self._phase_3_5()
-        self._phase_3_6()
+        try:
+            self._phase_3_6()
+        except _auth.ConfigurationError as exc:
+            # Gated-module-in-include hard error (Story 4.1 / 5.1 / 5.2).
+            # Testbed-aware — moved here from Phase 0.5 per build deviation #6.
+            print(f"ERROR: {exc}", file=self._terminal_stream)
+            sys.exit(2)
         self._phase_3_7()
 
         try:
