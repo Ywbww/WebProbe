@@ -684,7 +684,7 @@ def run(args) -> int:
     from webprobe.session import make_session_factory
     from webprobe.target import discover_target
     from webprobe.output import colors, filename_for_target, terminal
-    from webprobe.output.html import render_html
+    from webprobe.output.html import render_html_v1 as render_html
     from webprobe.output.txt import render_txt
 
     colors.init()
