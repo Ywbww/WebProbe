@@ -11,6 +11,7 @@ import re
 import secrets
 from hashlib import sha256
 from typing import Optional
+from urllib.parse import urljoin
 
 import requests
 from requests import Response
@@ -100,4 +101,47 @@ def user_enum_finding(login_url: str, real_user: str,
         remediation=("Return identical response shape regardless of whether "
                      "the username exists; both should fail with a generic "
                      "'Invalid credentials' message."),
+    )
+
+
+def build_probe_set(target_url: str, login_url: Optional[str]) -> list[str]:
+    """Story 7.4.E1: own probe set, NOT target.urls. Five fixed shapes
+    that flush dev-mode error pages on common stacks (Python tracebacks,
+    PHP warnings, generic 500s)."""
+    probes = [
+        urljoin(target_url, "/"),
+        urljoin(target_url, "/admin/__webprobe_404_trigger__"),
+        urljoin(target_url, "/?id='%20OR%201=1"),
+        urljoin(target_url, "/search?q='"),
+    ]
+    if login_url:
+        probes.insert(1, login_url)
+    return probes
+
+
+def match_stack_trace(body: str,
+                      patterns: list[str]) -> Optional[tuple[str, str]]:
+    """Substring-match patterns against `body`. Returns (pattern, excerpt)
+    on first match; None if no pattern fires. Excerpt is up to 200 chars
+    starting at the match position."""
+    if not body:
+        return None
+    for p in patterns:
+        idx = body.find(p)
+        if idx >= 0:
+            excerpt = body[idx:idx + 200].replace("\n", " ").strip()
+            return p, excerpt
+    return None
+
+
+def stack_trace_finding(probe_url: str, pattern: str, excerpt: str) -> Finding:
+    return Finding(
+        severity="MEDIUM", category="error_leakage",
+        finding_type="stack_trace_leakage",
+        name=f"Stack trace leakage on {probe_url}",
+        url=probe_url,
+        evidence=(f"Pattern {pattern!r} found in response body. "
+                  f"First 200 chars of leak: {excerpt}"),
+        remediation=("Configure framework to suppress stack traces in "
+                     "production; route exceptions to a generic error page."),
     )
