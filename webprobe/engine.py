@@ -9,7 +9,16 @@ Phase ordering (Engine.run_pipeline):
     Phase 1    Module enumeration + class-attr validation
     Phase 2    User-flag module filtering
     Phase 3    Connectivity check (single GET → base_response)
-    Phase 3.5+ Wired progressively in subsequent items.
+    Phase 3.5  Testbed detection (filter.detect_testbed)
+    Phase 3.6  Risk-gate filtering (filter.filter_modules_by_risk_gates)
+    Phase 3.7  Risk-gate banner emission
+    Phase 5a   Resolve primary credential password
+    Phase 5b   Build primary Session (form-login OR cookie)
+    Phase 5c   Build baseline Session (optional)
+    Phase 5d   Shared-session detection (INFO if equal)
+    Phase 5e   Session-check probe (sha256 unauth vs primary; INFO if equal)
+    Phase 5f   Authed sitemap (stub — body lands at Item 10)
+    Phase 4/6/7 Wired progressively in subsequent items.
 
 Sprint 1's module-level `run(args)` function is preserved at the bottom of
 this file so `webprobe/probe.py` keeps working until Item 23 rewires the
@@ -17,6 +26,7 @@ CLI to the v2 Engine class.
 """
 from __future__ import annotations
 
+import hashlib
 import sys
 import threading
 import time
@@ -69,6 +79,8 @@ class Engine:
         self._primary_user_id: Optional[str] = getattr(args, "auth_user", None)
         # Module enumeration cache (filled in Phase 1):
         self._scheduled_modules: list[type] = []
+        # Risk-gate result (filled in Phase 3.6):
+        self._dropped_by_risk_gate: list[tuple[type, str]] = []
 
     # --- Phase 0.5: inter-flag validation -------------------------------
     def _phase_0_5(self) -> None:
@@ -136,19 +148,227 @@ class Engine:
             urls=(),
         )
 
+    # --- Phase 3.5: testbed detection -----------------------------------
+    def _phase_3_5(self) -> None:
+        """Cache testbed signal so Phase 3.6 can apply the gate-bypass per
+        Story 5.3. Concrete signal detection lives in `filter.detect_testbed`
+        (Item 14b); stub returns False until then."""
+        self._is_testbed = _filter.detect_testbed(self.args, self._target)
+
+    # --- Phase 3.6: risk-gate filtering ---------------------------------
+    def _phase_3_6(self) -> None:
+        """Apply per-module risk-gate flags. Returns (kept, dropped); we
+        keep both so Phase 3.7 can banner the dropped set."""
+        kept, dropped = _filter.filter_modules_by_risk_gates(
+            self._scheduled_modules, self.args, bool(self._is_testbed)
+        )
+        self._scheduled_modules = list(kept)
+        self._dropped_by_risk_gate = list(dropped)
+
+    # --- Phase 3.7: risk-gate banner ------------------------------------
+    def _phase_3_7(self) -> None:
+        """Banner emission per Story 5.3. Skipped when nothing was dropped,
+        when running against testbed (gates bypassed), or when all modules
+        were dropped (we leave that case to Phase 4+'s no-op-handling).
+        """
+        if not self._dropped_by_risk_gate:
+            return
+        if self._is_testbed:
+            return
+        all_excluded = not self._scheduled_modules
+        if all_excluded:
+            return
+        banner = _filter.render_risk_gate_banner(
+            self._dropped_by_risk_gate,
+            self.args,
+            bool(self._is_testbed),
+            all_excluded=all_excluded,
+        )
+        if banner:
+            print(banner, file=self._terminal_stream)
+
+    # --- Phase 5a: resolve primary password -----------------------------
+    def _phase_5a(self) -> None:
+        """Resolve the primary auth password via the Story 1.5 chain.
+        Cookie-mode skips (no password to resolve). Form-mode mutates
+        `self.args.auth_pass` so Phase 5b reads a concrete value.
+
+        On PasswordResolutionError: abort with sys.exit(1).
+        """
+        if not getattr(self.args, "auth_form", None):
+            return
+        try:
+            pw = _auth.resolve_password(
+                getattr(self.args, "auth_pass", None),
+                "WEBPROBE_AUTH_PASS",
+                f"[Password for {getattr(self.args, 'auth_user', '<user>')}]: ",
+            )
+        except _auth.PasswordResolutionError as exc:
+            print(f"[-] {exc}", file=self._terminal_stream)
+            sys.exit(1)
+        self.args.auth_pass = pw
+
+    # --- Phase 5b: primary Session --------------------------------------
+    def _phase_5b(self) -> None:
+        """Build the primary Session: form-login OR cookie. Append to
+        self._sessions. On LoginDiscoveryError / LoginValidationError:
+        abort with sys.exit(1).
+        """
+        cookie = getattr(self.args, "cookie", None)
+        auth_form = getattr(self.args, "auth_form", None)
+        if cookie:
+            self._sessions.append(_auth.setup_cookie_session(cookie))
+            return
+        if auth_form:
+            try:
+                sess = _auth.setup_form_login(
+                    self.args.target_url,
+                    auth_form,
+                    self.args.auth_user,
+                    self.args.auth_pass,
+                )
+            except (_auth.LoginDiscoveryError, _auth.LoginValidationError) as exc:
+                print(f"[-] {exc}", file=self._terminal_stream)
+                sys.exit(1)
+            self._sessions.append(sess)
+            return
+        # No auth flag: nothing to build at 5b. (Engine only enters Phase 5
+        # at all when at least one auth flag is set; this branch is the
+        # defensive fall-through.)
+        return
+
+    # --- Phase 5c: baseline Session -------------------------------------
+    def _phase_5c(self) -> None:
+        """Build optional baseline Session per Story 1.3. ConfigurationError
+        from inter-flag invariants surfaces here at Phase 5c (not Phase 0.5)
+        so failures get the auth-pipeline-broken exit code 2 distinct from
+        runtime-auth exit code 1. LoginDiscoveryError / LoginValidationError
+        from a baseline form-login still abort with sys.exit(1).
+        """
+        try:
+            sess = _auth.setup_baseline(self.args, self.args.target_url)
+        except _auth.ConfigurationError as exc:
+            print(f"ERROR: {exc}", file=self._terminal_stream)
+            sys.exit(2)
+        except (_auth.LoginDiscoveryError, _auth.LoginValidationError) as exc:
+            print(f"[-] {exc}", file=self._terminal_stream)
+            sys.exit(1)
+        if sess is not None:
+            self._sessions.append(sess)
+
+    # --- Phase 5d: shared-session detection -----------------------------
+    def _phase_5d(self) -> None:
+        """Continue + INFO finding per Story 1.3.E1 if primary and baseline
+        sessions share a session cookie value."""
+        f = _auth.detect_shared_session(self._sessions)
+        if f is not None:
+            # FIT3048 mapping is module-aware; for engine-emitted INFO
+            # findings we attach a default category map entry.
+            if f.fit3048_category is None:
+                f.fit3048_category = 1  # operational/observability bucket
+            self._findings.append(f)
+
+    # --- Phase 5e: session-check probe ----------------------------------
+    def _phase_5e(self) -> None:
+        """GET target URL with primary session, then anonymously. Compare
+        sha256 of normalized response bodies (truncated to 16 hex chars).
+        Equal hashes -> INFO finding "session_ambiguous"; auth pipeline
+        works but the target may not be honoring our cookies.
+        """
+        if not self._sessions:
+            return
+        primary = self._sessions[0]
+        url = self.args.target_url
+        try:
+            authed_resp = primary.get(url, timeout=10, allow_redirects=True)
+            anon_resp = requests.get(url, timeout=10, allow_redirects=True)
+        except requests.RequestException:
+            # Don't abort on probe failure — Phase 5e is observability,
+            # not gate. Phase 4 will surface real connectivity issues.
+            return
+        authed_hash = _hash_body(authed_resp.text)
+        anon_hash = _hash_body(anon_resp.text)
+        if authed_hash == anon_hash:
+            f = Finding(
+                severity="INFO",
+                category="auth",
+                finding_type="session_ambiguous",
+                name="Authenticated and anonymous responses are identical",
+                url=url,
+                evidence=(
+                    f"GET {url} returned byte-identical bodies for "
+                    f"authenticated and anonymous sessions (sha256 prefix "
+                    f"{authed_hash}). The target may not be honoring the "
+                    "supplied credentials, or the page is intentionally "
+                    "public — auth-required modules may produce false "
+                    "negatives."
+                ),
+                remediation=(
+                    "Verify --auth-form / --cookie credentials by browsing "
+                    "the target manually with the same auth shape, or pick "
+                    "a target URL that gates content behind authentication."
+                ),
+                fit3048_category=1,
+            )
+            self._findings.append(f)
+
+    # --- Phase 5f: authed sitemap (stub) --------------------------------
+    def _phase_5f(self) -> None:
+        """Authed sitemap — concrete body lands at Item 10 with discovery.py.
+        Stub now so Phase 5 ordering is correct.
+
+        Per spec Phase 5 abort/continue table, SitemapDiscoveryError aborts
+        with sys.exit(1) once wired.
+        """
+        return
+
     # --- Pipeline entry --------------------------------------------------
     def run_pipeline(self) -> int:
-        """Execute Phases 0.5 → 1 → 2 → 3. Subsequent phases (3.5/3.6/3.7/4/5/6/7)
-        are wired in items 7/10/14. Calling beyond Phase 3 currently no-ops.
+        """Execute the v2 phase ordering. Phases not yet implemented are
+        no-op'd via stubs in their owner modules.
         """
         try:
             self._phase_0_5()
         except _auth.ConfigurationError as exc:
             print(f"ERROR: {exc}", file=self._terminal_stream)
             sys.exit(2)
-        self._phase_1()
+        try:
+            self._phase_1()
+        except _auth.ConfigurationError as exc:
+            # Phase 1's class-attr validation also raises ConfigurationError.
+            print(f"ERROR: {exc}", file=self._terminal_stream)
+            sys.exit(2)
         self._phase_2()
         self._phase_3()
+        self._phase_3_5()
+        self._phase_3_6()
+        self._phase_3_7()
+
+        if _any_auth_flag_set(self.args):
+            try:
+                self._phase_5a()
+                self._phase_5b()
+                self._phase_5c()
+                self._phase_5d()
+                self._phase_5e()
+                self._phase_5f()
+            except _auth.ConfigurationError as exc:
+                # Defensive: setup_baseline raises ConfigurationError, which
+                # _phase_5c already catches and exits(2). This outer guard
+                # covers any future Phase 5 helper that surfaces the same
+                # exception type.
+                print(f"ERROR: {exc}", file=self._terminal_stream)
+                sys.exit(2)
+            except (_auth.LoginDiscoveryError,
+                    _auth.LoginValidationError,
+                    _auth.PasswordResolutionError) as exc:
+                # Defensive: per-phase handlers already exit(1) on these,
+                # but if any future helper raises without the local catch,
+                # we still surface a uniform error+exit shape.
+                print(f"[-] {exc}", file=self._terminal_stream)
+                sys.exit(1)
+            self._auth_phase_succeeded = True
+
         return 0
 
     # --- report_finding wrapper -----------------------------------------
@@ -226,6 +446,24 @@ def _has_concrete_attr(cls: type, attr: str) -> bool:
         if attr in klass.__dict__:
             return True
     return False
+
+
+def _any_auth_flag_set(args) -> bool:
+    """Phase 5 entry guard. Skip Phase 5 entirely when no auth flag is set."""
+    return any(
+        getattr(args, name, None)
+        for name in ("auth_form", "cookie", "idor_baseline", "idor_baseline_form")
+    )
+
+
+def _hash_body(text: Optional[str]) -> str:
+    """Phase 5e helper: sha256 of (normalized) body, truncated to 16 hex.
+
+    Normalization is conservative — strip leading/trailing whitespace only.
+    Aggressive normalization (cookies, CSRF tokens, timestamps) is deferred
+    to Sprint 3+ if false-positive rates demand it.
+    """
+    return hashlib.sha256((text or "").strip().encode("utf-8", "replace")).hexdigest()[:16]
 
 
 # --- Sprint 1 v1 backwards-compat -----------------------------------------
