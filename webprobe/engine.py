@@ -40,7 +40,8 @@ from requests import Session
 from webprobe import auth as _auth
 from webprobe import discovery as _discovery
 from webprobe import filter as _filter
-from webprobe.findings import Finding, Target
+from webprobe.coverage import ScanCoverage, ScanMetadata, WildcardIntents
+from webprobe.findings import Finding, Source, Target
 from webprobe.registry import MODULE_REGISTRY
 from webprobe.session import make_session_factory
 
@@ -78,10 +79,14 @@ class Engine:
         self._target: Optional[Target] = None
         # Auth attribution captured once per scan; closures read these:
         self._primary_user_id: Optional[str] = getattr(args, "auth_user", None)
+        self._baseline_user_id: Optional[str] = getattr(args, "idor_baseline_user", None)
         # Module enumeration cache (filled in Phase 1):
         self._scheduled_modules: list[type] = []
         # Risk-gate result (filled in Phase 3.6):
         self._dropped_by_risk_gate: list[tuple[type, str]] = []
+        # Phase 7 timing: started_at captured here, completed_at at end.
+        self._started_at = datetime.now().astimezone()
+        self._started_perf = time.time()
 
     # --- Phase 0.5: inter-flag validation -------------------------------
     def _phase_0_5(self) -> None:
@@ -448,12 +453,292 @@ class Engine:
                     file=self._terminal_stream,
                 )
 
-    # --- Phase 7: dedup (stub) ------------------------------------------
+    # --- Phase 7: dedup + ScanCoverage/ScanMetadata + sink writes -------
     def _phase_7(self) -> None:
-        """Dedup findings — concrete body lands at Item 13 with the JSON
-        envelope. For Item 9 the only output is the debug-print emitted
-        inside _make_report_finding, so Phase 7 is a no-op."""
-        return
+        """Story 3.4 + 3.5 — final integration.
+
+        Steps:
+          1. Wildcard-intents INFO finding (Story 2.3) — appended BEFORE
+             dedup so it participates in the identity-tuple collapse.
+          2. Dedup `self._findings` in place. Identity tuple
+             `(category, url, evidence_hash)`. Matched pairs across
+             unauth/authed passes merge into one finding with both labels
+             on `seen_in`.
+          3. Build ScanCoverage from engine state (mode, sessions,
+             urls_probed by-source, modules_fired, duration).
+          4. Build ScanMetadata (target, started_at, completed_at,
+             duration, exit_code, errored_modules, risk_gates_asserted).
+          5. Populate `args.fit3048_excluded_categories` so the FIT3048
+             HTML grouping renderer can distinguish "no findings (clean)"
+             from "no findings (excluded by --include/--exclude)".
+          6. Populate `args.risk_gates_asserted` for the OPERATIONAL_RISK
+             chip (cross-checked by HTML renderer).
+          7. Write four output sinks: terminal stream + HTML + TXT + JSON.
+             `--json-out -` routes JSON to stdout; terminal/coverage/
+             findings/summary already route to `self._terminal_stream`
+             which is stderr in that mode.
+        """
+        # 1. Wildcard-intents INFO finding (BEFORE dedup so it's in the
+        #    identity-tuple pool — though uniqueness should make collapse
+        #    a no-op for INFO singletons).
+        self._maybe_emit_wildcard_intents_finding()
+
+        # 2. Dedup in place.
+        self._findings = _dedup_findings(self._findings)
+
+        # 3. Build ScanCoverage.
+        completed_dt = datetime.now().astimezone()
+        elapsed = time.time() - self._started_perf
+        coverage = self._build_scan_coverage(elapsed)
+
+        # 4. Build ScanMetadata.
+        metadata = self._build_scan_metadata(completed_dt, elapsed)
+
+        # 5. fit3048_excluded_categories.
+        self.args.fit3048_excluded_categories = self._compute_excluded_categories()
+
+        # 6. risk_gates_asserted (used by HTML chip + ScanMetadata).
+        self.args.risk_gates_asserted = self._compute_risk_gates_asserted()
+
+        # 7. Render and write four sinks.
+        self._write_output_sinks(coverage, metadata)
+
+    def _maybe_emit_wildcard_intents_finding(self) -> None:
+        """Story 2.3 consolidated INFO finding for robots.txt wildcards.
+
+        Reads `args._discovery_robots_result.wildcard_intents` (populated
+        by Phase 4's `discover_robots`) and emits ONE INFO finding per
+        scan if any wildcard patterns were observed. Sets
+        `coverage.wildcard_intents` cross-reference field via stash on
+        self._wildcard_intents (read by `_build_scan_coverage`).
+        """
+        self._wildcard_intents: Optional[WildcardIntents] = None
+        robots_result = getattr(self.args, "_discovery_robots_result", None)
+        if robots_result is None:
+            return
+        patterns = tuple(getattr(robots_result, "wildcard_intents", ()) or ())
+        if not patterns:
+            return
+        target_url = self.args.target_url
+        from urllib.parse import urljoin
+        info = Finding(
+            severity="INFO",
+            category="discovery",
+            finding_type="wildcard_intents_observed",
+            name="robots.txt wildcard intents detected",
+            url=urljoin(target_url, "/robots.txt"),
+            evidence=", ".join(patterns),
+            remediation=(
+                "Review robots.txt wildcard semantics — wildcard "
+                "Disallow patterns are advisory hints, not access "
+                "controls. Verify the underlying paths enforce auth."
+            ),
+            fit3048_category=1,
+        )
+        self._findings.append(info)
+        self._wildcard_intents = WildcardIntents(
+            pattern_count=len(patterns),
+            info_finding_id=info.evidence_hash or "",
+        )
+
+    def _build_scan_coverage(self, elapsed: float) -> ScanCoverage:
+        """Construct the Story 3.4 ScanCoverage block from engine state."""
+        # Mode resolution (4 enum values per spec):
+        #   "unauth" / "authed" / "scan-both" / "baseline"
+        if getattr(self.args, "scan_both", False):
+            mode = "scan-both"
+        elif getattr(self.args, "auth_form", None) or getattr(self.args, "cookie", None):
+            if (getattr(self.args, "idor_baseline", None)
+                    or getattr(self.args, "idor_baseline_form", None)):
+                mode = "baseline"
+            else:
+                mode = "authed"
+        else:
+            mode = "unauth"
+
+        # Sessions list: identifiers of primary + baseline (when present).
+        sessions: list[str] = []
+        if self._primary_user_id:
+            sessions.append(self._primary_user_id)
+        elif self._sessions:
+            sessions.append("primary")
+        if self._baseline_user_id:
+            sessions.append(self._baseline_user_id)
+
+        # urls_probed.by_source breakdown from frozen pool.
+        by_source: dict[str, int] = {
+            "sitemap": 0, "robots": 0, "url_list": 0,
+            "dynamic": 0, "curated": 0,
+        }
+        urls = (self._target.urls if self._target is not None else ())
+        for _u, src in urls:
+            key = src.value if isinstance(src, Source) else str(src)
+            by_source[key] = by_source.get(key, 0) + 1
+        urls_probed = {"total": len(urls), "by_source": by_source}
+
+        # Modules fired: scheduled (post-Phase-2/3.6 filter) ; errored
+        # comes from self._errored_modules; completed = scheduled - errored.
+        scheduled = len(self._scheduled_modules)
+        errored = len(self._errored_modules)
+        completed = max(scheduled - errored, 0)
+        modules_fired = {
+            "scheduled": scheduled,
+            "completed": completed,
+            "errored": errored,
+        }
+
+        return ScanCoverage(
+            mode=mode,
+            sessions=sessions,
+            urls_probed=urls_probed,
+            modules_fired=modules_fired,
+            duration_seconds=elapsed,
+            wildcard_intents=getattr(self, "_wildcard_intents", None),
+        )
+
+    def _build_scan_metadata(self, completed_dt: datetime, elapsed: float) -> ScanMetadata:
+        """Construct the Story 3.4 ScanMetadata block from engine state."""
+        risk_gates = self._compute_risk_gates_asserted_argv()
+        errored_names = [name for name, _exc in self._errored_modules]
+        return ScanMetadata(
+            target=self.args.target_url,
+            started_at=self._started_at.isoformat(),
+            completed_at=completed_dt.isoformat(),
+            duration_seconds=elapsed,
+            exit_code=0,
+            errored_modules=errored_names,
+            risk_gates_asserted=risk_gates,
+        )
+
+    def _compute_risk_gates_asserted_argv(self) -> list[str]:
+        """User-typed argv form of risk-gate assertions (case preserved)."""
+        flags: list[str] = []
+        if getattr(self.args, "include_brute_force", False):
+            flags.append("--include-brute-force")
+        if getattr(self.args, "include_traversal", False):
+            flags.append("--include-traversal")
+        iott = getattr(self.args, "i_own_this_target", None)
+        if iott:
+            flags.append(f"--i-own-this-target={iott}")
+        return flags
+
+    def _compute_risk_gates_asserted(self) -> dict[str, bool]:
+        """Boolean view of risk-gate assertions (consumed by HTML chip)."""
+        return {
+            "i_own_this_target": bool(getattr(self.args, "i_own_this_target", None)),
+            "include_brute_force": bool(getattr(self.args, "include_brute_force", False)),
+            "include_traversal": bool(getattr(self.args, "include_traversal", False)),
+        }
+
+    def _compute_excluded_categories(self) -> set[int]:
+        """Set of FIT3048 categories with zero scheduled modules.
+
+        After Phase 2 filtering, walk every REGISTERED module's
+        FIT3048_CATEGORY_MAP, collect every category any registered module
+        covers, then subtract the union of categories covered by
+        currently-scheduled modules. The remainder is "excluded by user
+        flags" — the renderer uses this to label empty FIT3048 categories.
+        """
+        registered_cats: set[int] = set()
+        for cls in MODULE_REGISTRY.values():
+            registered_cats.update((getattr(cls, "FIT3048_CATEGORY_MAP", {}) or {}).values())
+        scheduled_cats: set[int] = set()
+        for cls in self._scheduled_modules:
+            scheduled_cats.update((getattr(cls, "FIT3048_CATEGORY_MAP", {}) or {}).values())
+        return registered_cats - scheduled_cats
+
+    def _write_output_sinks(self, coverage: ScanCoverage, metadata: ScanMetadata) -> None:
+        """Render four sinks (terminal stream + HTML/TXT/JSON files).
+
+        Per Lock 6, terminal output uses `print(..., file=self._terminal_stream)`.
+        `--json-out -` mode wires `_terminal_stream` to stderr in __init__,
+        so banner/coverage/findings/summary land on stderr automatically.
+        """
+        from webprobe.output import filename_for_target
+        from webprobe.output.html import render_html
+        from webprobe.output.json_render import render_json
+        from webprobe.output.terminal import (
+            render_banner, render_findings, render_run_summary,
+            render_scan_coverage,
+        )
+        from webprobe.output.txt import render_txt
+
+        # JSON sink first — file path or "-" (stdout). Terminal output
+        # follows so the user sees a clean JSON document on stdout when
+        # piping, and progress text on stderr.
+        json_out = getattr(self.args, "json_out", None)
+        json_str = render_json(self._findings, coverage, metadata, self.args)
+        sink_paths: dict[str, str] = {}
+
+        # Decide HTML/TXT output paths up front so the run-end summary
+        # can list them.
+        output_dir = getattr(self.args, "output", ".") or "."
+        html_path = filename_for_target(
+            self.args.target_url, self._started_at, output_dir, "html"
+        )
+        txt_path = html_path.with_suffix(".txt")
+        json_path = None
+        if json_out and json_out != "-":
+            from pathlib import Path as _Path
+            json_path = _Path(json_out)
+        elif json_out is None:
+            json_path = html_path.with_suffix(".json")
+
+        sink_paths["html"] = str(html_path)
+        sink_paths["txt"] = str(txt_path)
+        if json_out == "-":
+            sink_paths["json"] = "<stdout>"
+        elif json_path is not None:
+            sink_paths["json"] = str(json_path)
+
+        # Attach runtime-only attributes for render_run_summary's getattr
+        # reads. asdict() only serializes declared dataclass fields, so
+        # the JSON envelope's `scan` block stays clean (Lock 6 sibling).
+        metadata.findings = self._findings  # type: ignore[attr-defined]
+        metadata.modules_scheduled = coverage.modules_fired.get("scheduled", 0)  # type: ignore[attr-defined]
+        metadata.modules_completed = coverage.modules_fired.get("completed", 0)  # type: ignore[attr-defined]
+
+        # Render banner once (used by both terminal and TXT sinks).
+        banner = render_banner(self.args, self._target)
+
+        # Terminal stream output.
+        print(banner.rstrip("\n"), file=self._terminal_stream)
+        print(render_scan_coverage(coverage).rstrip("\n"), file=self._terminal_stream)
+        print(render_findings(self._findings, self.args).rstrip("\n"),
+              file=self._terminal_stream)
+        print(render_run_summary(metadata, sink_paths).rstrip("\n"),
+              file=self._terminal_stream)
+
+        # HTML sink.
+        try:
+            html_path.write_text(
+                render_html(self._findings, coverage, metadata, self.args),
+                encoding="utf-8",
+            )
+        except Exception as exc:
+            print(f"[!] HTML render failed: {exc}", file=self._terminal_stream)
+
+        # TXT sink.
+        try:
+            txt_path.write_text(
+                render_txt(banner, coverage, self._findings, metadata,
+                           self.args, sink_paths),
+                encoding="utf-8",
+            )
+        except Exception as exc:
+            print(f"[!] TXT render failed: {exc}", file=self._terminal_stream)
+
+        # JSON sink (last so any earlier failures show up before the
+        # machine-readable artifact lands).
+        if json_out == "-":
+            sys.stdout.write(json_str)
+            if not json_str.endswith("\n"):
+                sys.stdout.write("\n")
+        elif json_path is not None:
+            try:
+                json_path.write_text(json_str, encoding="utf-8")
+            except Exception as exc:
+                print(f"[!] JSON render failed: {exc}", file=self._terminal_stream)
 
     # --- Pipeline entry --------------------------------------------------
     def run_pipeline(self) -> int:
@@ -570,19 +855,15 @@ class Engine:
                         f"{module_cls.__name__}.FIT3048_CATEGORY_MAP missing key "
                         f"'{f.finding_type}'. Add the mapping to the module class."
                     )
-            # TEMP — Q1 debug-print verification artifact, removed at
-            # Item 13 when json_render lands. Lock 5 preserved (this is
-            # engine wrapper code, NOT module body code). default=str
-            # handles the Source enum if it ever appears on a Finding
-            # field (defensive — current Finding shape doesn't carry one).
-            import json as _json
-            from dataclasses import asdict as _asdict
-            print(_json.dumps(_asdict(f), indent=2, default=str), file=stream)
-
-            # Render + store with lock. Inline-tease render lands in Item 11;
-            # for now we just acquire-and-append so storage is thread-safe.
+            # Live "[SEVERITY] <name> — <url>" feedback during Phase 6.
+            # Item 13 replaced the Item-9 debug-print with this render call.
+            # Lock 5 preserved (this is engine wrapper code, NOT module
+            # body code). list.append is GIL-atomic in CPython; the lock
+            # serializes the inline-tease emission so concurrent module
+            # threads don't interleave bytes on the same stream.
             with lock:
-                # TODO Item 11: terminal.render_inline_tease(f, self.args, stream=stream)
+                from webprobe.output.terminal import render_inline_tease
+                render_inline_tease(f, self.args, stream=stream)
                 findings.append(f)
 
         return wrapped
@@ -607,6 +888,31 @@ def _any_auth_flag_set(args) -> bool:
         getattr(args, name, None)
         for name in ("auth_form", "cookie", "idor_baseline", "idor_baseline_form")
     )
+
+
+def _dedup_findings(findings: list[Finding]) -> list[Finding]:
+    """Phase 7 dedup. Identity tuple `(category, url, evidence_hash)`.
+
+    Order-preserving (first occurrence wins on identity collisions).
+    Matched pairs across passes merge their `seen_in` lists into one
+    finding (e.g. ["unauth"] + ["authed"] -> ["unauth", "authed"]).
+    Mutates pass-attribution by extending `seen_in` on the survivor;
+    other fields take the first-seen value (auth_context from the first
+    pass, etc. — module-body fields are identity-stable by construction).
+    """
+    by_id: dict[tuple[str, str, str], Finding] = {}
+    order: list[tuple[str, str, str]] = []
+    for f in findings:
+        key = (f.category, f.url, f.evidence_hash or "")
+        if key not in by_id:
+            by_id[key] = f
+            order.append(key)
+            continue
+        survivor = by_id[key]
+        for label in (f.seen_in or []):
+            if label not in survivor.seen_in:
+                survivor.seen_in.append(label)
+    return [by_id[k] for k in order]
 
 
 def _hash_body(text: Optional[str]) -> str:
@@ -685,7 +991,7 @@ def run(args) -> int:
     from webprobe.target import discover_target
     from webprobe.output import colors, filename_for_target, terminal
     from webprobe.output.html import render_html_v1 as render_html
-    from webprobe.output.txt import render_txt
+    from webprobe.output.txt import render_txt_v1 as render_txt
 
     colors.init()
     started = time.time()
