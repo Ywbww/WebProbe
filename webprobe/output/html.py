@@ -198,16 +198,68 @@ def _severity_counts(findings: Iterable[Finding]) -> dict[str, int]:
 # ---------------------------------------------------------------------------
 
 def _operational_risk_chip(findings: list[Finding], args) -> str:
-    """Item 12a placeholder — minimal chip above SCAN COVERAGE.
+    """Story 3.3.E2 — chip rendering driven by severity tally + risk-gate trail.
 
-    Item 12b upgrades this with severity-tally-driven coloring and a
-    `gate-trail` flag enumeration. For now the chip class is fixed and
-    text labels the section.
+    Color states:
+      red bordered chip when CRITICAL/HIGH count > 0
+      muted (grey) when only MEDIUM/LOW present
+      clean (green) when zero CRITICAL/HIGH/MEDIUM
+    Gate-trail second line enumerates user-typed risk-gate flags as the
+    audit trail (3.3.E2 lock — second line is non-negotiable).
     """
-    return (
-        '    <div class="operational-risk-chip">'
-        "<strong>OPERATIONAL_RISK</strong></div>"
-    )
+    counts = _severity_counts(findings)
+    high_or_worse = counts["CRITICAL"] + counts["HIGH"]
+    medium = counts["MEDIUM"]
+
+    risky_categories = sorted({
+        f.category for f in findings if f.severity in ("CRITICAL", "HIGH")
+    })
+    gate_trail_flags = _risk_gate_trail(args)
+
+    if high_or_worse > 0 and risky_categories:
+        chip_class = ""
+        cats = ", ".join(risky_categories)
+        text = f"⚠ OPERATIONAL_RISK: {cats}"
+    elif high_or_worse > 0:
+        chip_class = ""
+        text = "⚠ OPERATIONAL_RISK: gated modules produced high-severity findings"
+    elif medium > 0:
+        chip_class = "muted"
+        text = "OPERATIONAL_RISK: medium-severity findings only"
+    else:
+        chip_class = "clean"
+        text = "OPERATIONAL_RISK: clean — no high/critical findings"
+
+    classes = "operational-risk-chip"
+    if chip_class:
+        classes += f" {chip_class}"
+
+    parts = [f'    <div class="{classes}">']
+    parts.append(f"      <strong>{_esc(text)}</strong>")
+    if gate_trail_flags:
+        parts.append(
+            f'      <span class="gate-trail">gated by {_esc(" ".join(gate_trail_flags))}</span>'
+        )
+    parts.append("    </div>")
+    return "\n".join(parts)
+
+
+def _risk_gate_trail(args) -> list[str]:
+    """Enumeration of risk-gate flags actually asserted on argv.
+
+    The audit-trail intent is to surface user-typed argv form. We inspect a
+    pinned set of attribute names; richer signal lands in Item 13+ when
+    `args.risk_gates_asserted` is wired through engine.
+    """
+    flags: list[str] = []
+    if getattr(args, "include_brute_force", False):
+        flags.append("--include-brute-force")
+    iott = getattr(args, "i_own_this_target", None)
+    if iott:
+        flags.append(f"--i-own-this-target={iott}")
+    if getattr(args, "include_traversal", False):
+        flags.append("--include-traversal")
+    return flags
 
 
 def _coverage_block(coverage) -> str:
@@ -383,12 +435,79 @@ def _render_default_findings(findings: list[Finding]) -> str:
 
 
 def _render_fit3048_findings(findings: list[Finding], args) -> str:
-    """Item 12a placeholder — FIT3048 two-level grouping lands in Item 12b.
+    """Story 4.2 — FIT3048 two-level grouping.
 
-    For now `--fit3048` falls through to default severity grouping so the
-    document still renders coherently.
+    Outer: 7 FIT3048 categories. Inner: severity (CRITICAL → INFO).
+    Empty categories distinguish "no findings" (clean check passed)
+    from "filtered out by --include-modules / --exclude-modules".
     """
-    return _render_default_findings(findings)
+    by_cat: dict[int, list[Finding]] = {}
+    for f in findings:
+        if f.fit3048_category is None:
+            continue
+        by_cat.setdefault(f.fit3048_category, []).append(f)
+
+    excluded = _fit3048_excluded_categories(args)
+
+    sections: list[str] = []
+    for cat in sorted(FIT3048_CATEGORIES):
+        cat_findings = by_cat.get(cat, [])
+        cat_name = FIT3048_CATEGORIES[cat]
+        if not cat_findings:
+            classes = "fit3048-category fit3048-empty"
+            if cat in excluded:
+                classes += " fit3048-filtered"
+                reason = (
+                    "(no findings — modules covering this category were "
+                    "excluded by --include-modules / --exclude-modules)"
+                )
+            else:
+                reason = "(no findings)"
+            sections.append(
+                "\n".join([
+                    f'  <section class="{classes}" data-category="{cat}">',
+                    f'    <h2>Category {cat}: {_esc(cat_name)}</h2>',
+                    f'    <p class="empty-reason">{_esc(reason)}</p>',
+                    "  </section>",
+                ])
+            )
+            continue
+
+        # severity grouping inside the category
+        by_sev: dict[str, list[Finding]] = {s: [] for s in SEVERITY_ORDER}
+        for f in cat_findings:
+            by_sev[f.severity].append(f)
+
+        cat_lines = [
+            f'  <section class="fit3048-category" data-category="{cat}">',
+            (
+                f'    <h2>Category {cat}: {_esc(cat_name)} '
+                f'<span class="count">[{len(cat_findings)} findings]</span></h2>'
+            ),
+        ]
+        for sev in SEVERITY_ORDER:
+            bucket = by_sev[sev]
+            if not bucket:
+                continue
+            cat_lines.append(_render_severity_section_v2(sev, bucket, heading_tag="h3"))
+        cat_lines.append("  </section>")
+        sections.append("\n".join(cat_lines))
+
+    if not sections:
+        return '  <p class="no-findings">(no findings)</p>'
+    return "\n".join(sections)
+
+
+def _fit3048_excluded_categories(args) -> set[int]:
+    """Categories filtered out by --include-modules / --exclude-modules.
+
+    Engine wires `args.fit3048_excluded_categories` (Item 13+); this
+    helper only reads it. Renderer never re-derives the exclusion set.
+    """
+    excluded = getattr(args, "fit3048_excluded_categories", None)
+    if excluded:
+        return set(excluded)
+    return set()
 
 
 # ---------------------------------------------------------------------------
