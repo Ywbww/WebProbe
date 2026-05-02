@@ -42,6 +42,7 @@ from webprobe import discovery as _discovery
 from webprobe import filter as _filter
 from webprobe.findings import Finding, Target
 from webprobe.registry import MODULE_REGISTRY
+from webprobe.session import make_session_factory
 
 VERSION = "2.0.0-dev"
 
@@ -322,6 +323,106 @@ class Engine:
         """
         return
 
+    # --- Phase 4: URL pool resolution (stub) ----------------------------
+    def _phase_4(self) -> None:
+        """URL pool resolution — concrete body lands at Item 10 with
+        discovery.resolve_url_pool. Stub leaves `target.urls` as the empty
+        tuple set in Phase 3.
+
+        Item 9's first vertical slice (access_control) reads its candidate
+        paths from its own DATA_FILES, NOT from target.urls, so an empty
+        pool is fine here. Modules that filter by `source_filter` will be
+        no-ops until Item 10 populates the pool.
+        """
+        if self._target is not None:
+            self._target.urls = ()
+
+    # --- Phase 6: per-module dispatch -----------------------------------
+    def _phase_6(self) -> None:
+        """Dispatch each scheduled module per its auth_strategy.
+
+        Strategy → pass-label mapping:
+          unauth_always   → one pass with anonymous session, label "unauth"
+          auth_required   → one pass with primary session, label "authed"
+                            (requires self._sessions; skipped silently if
+                            no auth flag was set — module simply doesn't
+                            run, which is the expected guard)
+          follow          → one pass with primary if auth set, else
+                            anonymous; label matches the case
+
+        Each module's run() is wrapped in try/except per Module Crash
+        semantics (spec.md > Module Crash). Unhandled exceptions append to
+        self._errored_modules and the engine continues to the next module.
+        """
+        role_label = getattr(self.args, "auth_role", None)
+        primary_user_id = self._primary_user_id
+        for module_cls in self._scheduled_modules:
+            strategy = getattr(module_cls, "auth_strategy", None)
+            if strategy == "unauth_always":
+                pass_label = "unauth"
+                sessions_for_pass = [requests.Session()]
+            elif strategy == "auth_required":
+                if not self._sessions:
+                    # No auth pipeline → auth-required modules cannot run.
+                    # Engine doesn't error; absence-of-finding is the
+                    # signal. (User-flag include of an auth-required
+                    # module without auth flags is caught by Phase 0.5
+                    # gated-module-in-include validation in Item 14a.)
+                    continue
+                pass_label = "authed"
+                sessions_for_pass = self._sessions
+            elif strategy == "follow":
+                if self._sessions:
+                    pass_label = "authed"
+                    sessions_for_pass = self._sessions
+                else:
+                    pass_label = "unauth"
+                    sessions_for_pass = [requests.Session()]
+            else:
+                # Unknown strategy — Phase 1 should have caught a missing
+                # attr, but a typo'd value would leak through. Skip + log.
+                self._errored_modules.append(
+                    (module_cls.__name__, RuntimeError(
+                        f"unknown auth_strategy {strategy!r}"
+                    ))
+                )
+                continue
+
+            try:
+                module = module_cls(args=self.args)
+            except Exception as exc:
+                self._errored_modules.append((module_cls.__name__, exc))
+                print(
+                    f"[!] Module {module_cls.__name__} errored at construction: {exc}",
+                    file=self._terminal_stream,
+                )
+                continue
+
+            report_finding = self._make_report_finding(
+                module_cls, pass_label, primary_user_id, role_label
+            )
+            session_factory = make_session_factory(sessions_for_pass)
+
+            try:
+                module.run(self._target, session_factory, report_finding)
+            except Exception as exc:
+                # Module Crash semantics — record + emit + continue.
+                self._errored_modules.append(
+                    (getattr(module_cls, "name", module_cls.__name__), exc)
+                )
+                print(
+                    f"[!] Module {getattr(module_cls, 'name', module_cls.__name__)}"
+                    f" errored: {exc}",
+                    file=self._terminal_stream,
+                )
+
+    # --- Phase 7: dedup (stub) ------------------------------------------
+    def _phase_7(self) -> None:
+        """Dedup findings — concrete body lands at Item 13 with the JSON
+        envelope. For Item 9 the only output is the debug-print emitted
+        inside _make_report_finding, so Phase 7 is a no-op."""
+        return
+
     # --- Pipeline entry --------------------------------------------------
     def run_pipeline(self) -> int:
         """Execute the v2 phase ordering. Phases not yet implemented are
@@ -343,6 +444,15 @@ class Engine:
         self._phase_3_5()
         self._phase_3_6()
         self._phase_3_7()
+
+        try:
+            self._phase_4()
+        except _discovery.SitemapDiscoveryError as exc:
+            # Per spec Phase 5 abort table, SitemapDiscoveryError aborts.
+            # The unauth-sitemap path raises here once Item 10 wires it;
+            # the authed-sitemap path raises in Phase 5f.
+            print(f"[-] {exc}", file=self._terminal_stream)
+            sys.exit(1)
 
         if _any_auth_flag_set(self.args):
             try:
@@ -368,6 +478,9 @@ class Engine:
                 print(f"[-] {exc}", file=self._terminal_stream)
                 sys.exit(1)
             self._auth_phase_succeeded = True
+
+        self._phase_6()
+        self._phase_7()
 
         return 0
 
@@ -425,11 +538,19 @@ class Engine:
                         f"{module_cls.__name__}.FIT3048_CATEGORY_MAP missing key "
                         f"'{f.finding_type}'. Add the mapping to the module class."
                     )
+            # TEMP — Q1 debug-print verification artifact, removed at
+            # Item 13 when json_render lands. Lock 5 preserved (this is
+            # engine wrapper code, NOT module body code). default=str
+            # handles the Source enum if it ever appears on a Finding
+            # field (defensive — current Finding shape doesn't carry one).
+            import json as _json
+            from dataclasses import asdict as _asdict
+            print(_json.dumps(_asdict(f), indent=2, default=str), file=stream)
+
             # Render + store with lock. Inline-tease render lands in Item 11;
             # for now we just acquire-and-append so storage is thread-safe.
             with lock:
                 # TODO Item 11: terminal.render_inline_tease(f, self.args, stream=stream)
-                _ = stream  # placeholder reference; render wired in Item 11
                 findings.append(f)
 
         return wrapped
