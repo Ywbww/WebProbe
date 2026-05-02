@@ -27,7 +27,11 @@ import colorama
 import requests
 from requests import Session
 
+from webprobe import auth as _auth
+from webprobe import discovery as _discovery
+from webprobe import filter as _filter
 from webprobe.findings import Finding, Target
+from webprobe.registry import MODULE_REGISTRY
 
 VERSION = "2.0.0-dev"
 
@@ -65,6 +69,56 @@ class Engine:
         self._primary_user_id: Optional[str] = getattr(args, "auth_user", None)
         # Module enumeration cache (filled in Phase 1):
         self._scheduled_modules: list[type] = []
+
+    # --- Phase 0.5: inter-flag validation -------------------------------
+    def _phase_0_5(self) -> None:
+        """All cross-flag invariants caught here, before any HTTP. Validators
+        raise ConfigurationError; engine catches at top level and exits with
+        code 2 (argparse-style)."""
+        _auth.validate_auth_flags(self.args)
+        _discovery.validate_discovery_flags(self.args)
+        _filter.validate_module_flags(self.args)
+        _filter.validate_i_own_this_target(self.args)
+
+    # --- Phase 1: module enumeration + class-attr validation ------------
+    def _phase_1(self) -> None:
+        """Enumerate registered modules; validate required class attrs.
+
+        Triggers `import webprobe.modules` to fire @register side effects,
+        then iterates MODULE_REGISTRY. Each class must declare `name`,
+        `auth_strategy`, `FIT3048_CATEGORY_MAP`. Missing attrs raise
+        ConfigurationError (caught at run_pipeline's top-level handler).
+        """
+        # Trigger module imports so @register fires. Sprint 1's v1 modules
+        # don't yet use @register (retrofit lands at Items 20-22), so an
+        # empty MODULE_REGISTRY is fine here — v2 modules register starting
+        # at Item 9.
+        import webprobe.modules  # noqa: F401  (side-effect import)
+
+        scheduled: list[type] = []
+        for module_cls in MODULE_REGISTRY.values():
+            for required in ("name", "auth_strategy", "FIT3048_CATEGORY_MAP"):
+                if not _has_concrete_attr(module_cls, required):
+                    raise _auth.ConfigurationError(
+                        f"Module {module_cls.__name__} missing required class "
+                        f"attribute '{required}'. See spec > BaseModule contract."
+                    )
+            scheduled.append(module_cls)
+        self._scheduled_modules = scheduled
+
+    # --- Pipeline entry --------------------------------------------------
+    def run_pipeline(self) -> int:
+        """Execute Phases 0.5 → 1 → 2 → 3. Subsequent phases (3.5/3.6/3.7/4/5/6/7)
+        are wired in items 7/10/14. Calling beyond Phase 3 currently no-ops.
+        """
+        try:
+            self._phase_0_5()
+        except _auth.ConfigurationError as exc:
+            print(f"ERROR: {exc}", file=self._terminal_stream)
+            sys.exit(2)
+        self._phase_1()
+        # Phase 2/3 wired in Item 5c.
+        return 0
 
     # --- report_finding wrapper -----------------------------------------
     def _make_report_finding(
@@ -128,6 +182,19 @@ class Engine:
                 findings.append(f)
 
         return wrapped
+
+
+def _has_concrete_attr(cls: type, attr: str) -> bool:
+    """Return True iff `attr` exists with a value somewhere in cls's MRO.
+
+    Pure-annotation declarations (e.g. `name: str` with no `=` value) do
+    NOT count: they live in __annotations__, not in any __dict__. This is
+    what Phase 1 wants — concrete subclasses must assign the attribute.
+    """
+    for klass in cls.__mro__:
+        if attr in klass.__dict__:
+            return True
+    return False
 
 
 # --- Sprint 1 v1 backwards-compat -----------------------------------------
