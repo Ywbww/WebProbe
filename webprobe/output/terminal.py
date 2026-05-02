@@ -225,9 +225,10 @@ def render_findings(findings, args) -> str:
     (`[CRITICAL × 0]` not omitted). Per-finding multi-line block with
     Probed/Baseline/Sessions lines only when their source field is set.
 
-    Lock (Phase 1): the IDOR-conditional render expression
-    `category == "idor"` lives in EXACTLY 2 places under
-    webprobe/output/ — this function and html.py.
+    Lock (Phase 1): the IDOR-conditional render expression — equality
+    check on the category string against the IDOR module name plus
+    `baseline_context is not None` — lives in EXACTLY 2 places under
+    webprobe/output/: this function and html.py. Don't add a third.
     """
     header = "═" * 15 + " FINDINGS " + "═" * 15
     lines: list[str] = [header]
