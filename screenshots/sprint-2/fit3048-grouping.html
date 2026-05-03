@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>WebProbe Report — localhost</title>
+  <style>
+body {
+  background: #FFFFFF;
+  color: #2C3E50;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  max-width: 960px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+  line-height: 1.5;
+}
+h1 { margin: 0 0 0.5rem 0; font-size: 1.75rem; }
+h2 { font-size: 1.3rem; margin: 1.5rem 0 0.5rem; }
+h3 { font-size: 1.1rem; margin: 1rem 0 0.5rem; }
+header.report-header { border-bottom: 1px solid #e0e0e0; padding-bottom: 1rem; margin-bottom: 1.5rem; }
+header.report-header .meta { display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.9rem; color: #555; margin: 0.5rem 0; }
+.operational-risk-chip {
+  background: #C0392B;
+  color: white;
+  padding: 0.5rem 0.75rem;
+  font-weight: bold;
+  border: 2px solid #922B21;
+  border-radius: 3px;
+  margin: 0.75rem 0;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
+.operational-risk-chip.muted {
+  background: #95A5A6;
+  border-color: #7F8C8D;
+}
+.operational-risk-chip.clean {
+  background: #27AE60;
+  border-color: #1E8449;
+}
+.operational-risk-chip .gate-trail { display: block; font-weight: normal; font-size: 0.85rem; margin-top: 0.25rem; }
+.partial-banner {
+  background: #FEF3CD;
+  color: #856404;
+  padding: 0.5rem 1rem;
+  border-left: 4px solid #F39C12;
+  margin-top: 0.75rem;
+}
+.coverage { background: #FAFAFA; border: 1px solid #E0E0E0; padding: 1rem 1.25rem; border-radius: 4px; margin-bottom: 1.5rem; }
+.coverage dl { display: grid; grid-template-columns: 200px 1fr; gap: 0.25rem 1rem; margin: 0; }
+.coverage dt { font-weight: 600; color: #555; }
+.coverage dd { margin: 0; word-break: break-word; }
+.fit3048-category { margin-bottom: 2rem; border: 1px solid #ddd; padding: 0.75rem 1rem; border-radius: 4px; }
+.fit3048-category > h2 { margin: 0 0 0.5rem; }
+.fit3048-category .count { font-weight: normal; color: #666; font-size: 0.9rem; }
+.fit3048-empty { background: #F8F8F8; }
+.empty-reason { color: #777; font-style: italic; margin: 0; }
+.severity-group { margin-top: 1rem; }
+.severity-group > h3 {
+  color: white;
+  padding: 0.4rem 0.75rem;
+  margin: 0 0 0.5rem 0;
+  border-radius: 3px;
+}
+.severity-section { margin-bottom: 2rem; }
+.severity-section > h2 {
+  color: white;
+  padding: 0.4rem 0.75rem;
+  margin: 0 0 0.5rem 0;
+  border-radius: 3px;
+}
+article.finding {
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid #eee;
+}
+article.finding > header.finding-header { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+.severity-badge {
+  color: white;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+.severity-badge.severity-critical { background: #C0392B; }
+.severity-badge.severity-high     { background: #E74C3C; }
+.severity-badge.severity-medium   { background: #F39C12; }
+.severity-badge.severity-low      { background: #3498DB; }
+.severity-badge.severity-info     { background: #7F8C8D; }
+.finding-name { font-size: 1.05rem; margin: 0; flex: 1 1 auto; }
+.auth-badge {
+  background: #ECF0F1;
+  color: #2C3E50;
+  border: 1px solid #BDC3C7;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.85rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  border-radius: 3px;
+}
+.finding-fields {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0;
+}
+.finding-fields dt { font-weight: 600; color: #555; }
+.finding-fields dd { margin: 0; word-break: break-word; }
+.copy-btn {
+  font-size: 12px;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid #ccc;
+  background: #f8f8f8;
+  cursor: pointer;
+  margin-left: 0.5rem;
+  border-radius: 3px;
+}
+.copy-btn:hover { background: #e8e8e8; }
+aside.errors {
+  margin-top: 2rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e0e0e0;
+  background: #fafafa;
+}
+aside.errors h2 { margin-top: 0; font-size: 1.1rem; }
+a { color: #2980B9; }
+  </style>
+</head>
+<body>
+  <header class="report-header">
+    <h1>WebProbe v2.0 — Scan Report</h1>
+    <div class="meta">
+      <span>Target: <a href="http://localhost:9999">http://localhost:9999</a></span>
+      <span>Started: 2026-05-03T17:59:39.273195+10:00</span>
+      <span>Completed: 2026-05-03T17:59:44.676904+10:00</span>
+      <span>Duration: 5.4s</span>
+    </div>
+    <div class="operational-risk-chip">
+      <strong>⚠ OPERATIONAL_RISK: access_control, csrf, error_leakage, idor, paths, session, sqli, xss</strong>
+    </div>
+  </header>
+  <section class="coverage">
+    <h2>Scan Coverage</h2>
+    <dl>
+      <dt>Mode</dt><dd>Authenticated, dual-session</dd>
+      <dt>Sessions</dt><dd>2 (admin, alice)</dd>
+      <dt>URLs probed</dt><dd>170 (0 sitemap, 0 robots, 3 url-list, 3 dynamic, 164 curated)</dd>
+      <dt>Modules fired</dt><dd>12/12 (no errors)</dd>
+      <dt>Duration</dt><dd>5.4s</dd>
+    </dl>
+  </section>
+  <section class="findings">
+    <h2>Findings</h2>
+  <section class="fit3048-category" data-category="1">
+    <h2>Category 1: Server config &amp; deployment hygiene <span class="count">[8 findings]</span></h2>
+  <section class="severity-group" data-severity="HIGH">
+    <h3 style="background: #E74C3C;">HIGH (1)</h3>
+    <article class="finding finding-high" data-category="paths">
+      <header class="finding-header">
+        <span class="severity-badge severity-high">HIGH</span>
+        <h3 class="finding-name">Exposed path: /.htaccess</h3>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999/.htaccess">http://localhost:9999/.htaccess</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>HTTP 200 on /.htaccess</dd>
+        <dt>Fix</dt>
+        <dd>Block public access to this path; remove the file or restrict via web-server config / .gitignore.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 1</dd>
+      </dl>
+    </article>
+  </section>
+  <section class="severity-group" data-severity="MEDIUM">
+    <h3 style="background: #F39C12;">MEDIUM (6)</h3>
+    <article class="finding finding-medium" data-category="paths">
+      <header class="finding-header">
+        <span class="severity-badge severity-medium">MEDIUM</span>
+        <h3 class="finding-name">Exposed path: /reflect-xss</h3>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999/reflect-xss?q=test">http://localhost:9999/reflect-xss?q=test</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>HTTP 200 on /reflect-xss</dd>
+        <dt>Fix</dt>
+        <dd>Block public access to this path; remove the file or restrict via web-server config / .gitignore.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 1</dd>
+      </dl>
+    </article>
+    <article class="finding finding-medium" data-category="paths">
+      <header class="finding-header">
+        <span class="severity-badge severity-medium">MEDIUM</span>
+        <h3 class="finding-name">Exposed path: /idor/1</h3>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999/idor/1">http://localhost:9999/idor/1</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>HTTP 200 on /idor/1</dd>
+        <dt>Fix</dt>
+        <dd>Block public access to this path; remove the file or restrict via web-server config / .gitignore.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 1</dd>
+      </dl>
+    </article>
+    <article class="finding finding-medium" data-category="paths">
+      <header class="finding-header">
+        <span class="severity-badge severity-medium">MEDIUM</span>
+        <h3 class="finding-name">Exposed path: /vulnerable</h3>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999/vulnerable?q=test">http://localhost:9999/vulnerable?q=test</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>HTTP 200 on /vulnerable</dd>
+        <dt>Fix</dt>
+        <dd>Block public access to this path; remove the file or restrict via web-server config / .gitignore.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 1</dd>
+      </dl>
+    </article>
+    <article class="finding finding-medium" data-category="paths">
+      <header class="finding-header">
+        <span class="severity-badge severity-medium">MEDIUM</span>
+        <h3 class="finding-name">Exposed path: /server-info</h3>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999/server-info">http://localhost:9999/server-info</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>HTTP 200 on /server-info</dd>
+        <dt>Fix</dt>
+        <dd>Block public access to this path; remove the file or restrict via web-server config / .gitignore.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 1</dd>
+      </dl>
+    </article>
+    <article class="finding finding-medium" data-category="paths">
+      <header class="finding-header">
+        <span class="severity-badge severity-medium">MEDIUM</span>
+        <h3 class="finding-name">Exposed path: /cpanel</h3>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999/cpanel">http://localhost:9999/cpanel</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>HTTP 200 on /cpanel</dd>
+        <dt>Fix</dt>
+        <dd>Block public access to this path; remove the file or restrict via web-server config / .gitignore.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 1</dd>
+      </dl>
+    </article>
+    <article class="finding finding-medium" data-category="error_leakage">
+      <header class="finding-header">
+        <span class="severity-badge severity-medium">MEDIUM</span>
+        <h3 class="finding-name">Stack trace leakage on http://localhost:9999/search?q=&#x27;</h3>
+        <span class="auth-badge">[as admin]</span>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999/search?q=&#x27;">http://localhost:9999/search?q=&#x27;</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>Pattern &#x27;Traceback (most recent call last):&#x27; found in response body. First 200 chars of leak: Traceback (most recent call last):   File &quot;/app/views/search.py&quot;, line 42, in search     cursor.execute(f&quot;SELECT * FROM items WHERE name = &#x27;{q}&#x27;&quot;)   File &quot;/usr/lib/python3.11/sqlite3/dbapi2.py&quot;, line</dd>
+        <dt>Probed</dt>
+        <dd><span class="auth-badge">as admin</span></dd>
+        <dt>Fix</dt>
+        <dd>Configure framework to suppress stack traces in production; route exceptions to a generic error page.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 1</dd>
+      </dl>
+    </article>
+  </section>
+  <section class="severity-group" data-severity="INFO">
+    <h3 style="background: #7F8C8D;">INFO (1)</h3>
+    <article class="finding finding-info" data-category="auth">
+      <header class="finding-header">
+        <span class="severity-badge severity-info">INFO</span>
+        <h3 class="finding-name">Authenticated and anonymous responses are identical</h3>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999">http://localhost:9999</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>GET http://localhost:9999 returned byte-identical bodies for authenticated and anonymous sessions (sha256 prefix 8f857ffda18871bf). The target may not be honoring the supplied credentials, or the page is intentionally public — auth-required modules may produce false negatives.</dd>
+        <dt>Fix</dt>
+        <dd>Verify --auth-form / --cookie credentials by browsing the target manually with the same auth shape, or pick a target URL that gates content behind authentication.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 1</dd>
+      </dl>
+    </article>
+  </section>
+  </section>
+  <section class="fit3048-category" data-category="2">
+    <h2>Category 2: Broken access control <span class="count">[4 findings]</span></h2>
+  <section class="severity-group" data-severity="HIGH">
+    <h3 style="background: #E74C3C;">HIGH (4)</h3>
+    <article class="finding finding-high" data-category="access_control">
+      <header class="finding-header">
+        <span class="severity-badge severity-high">HIGH</span>
+        <h3 class="finding-name">Admin-shape page reachable: /admin/</h3>
+        <span class="auth-badge">[as admin]</span>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999/admin/">http://localhost:9999/admin/</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>HTTP 200 with admin-shaped HTML (contains &#x27;All Users&#x27;).</dd>
+        <dt>Probed</dt>
+        <dd><span class="auth-badge">as admin</span></dd>
+        <dt>Fix</dt>
+        <dd>Add an admin role check on /admin/.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 2</dd>
+      </dl>
+    </article>
+    <article class="finding finding-high" data-category="csrf">
+      <header class="finding-header">
+        <span class="severity-badge severity-high">HIGH</span>
+        <h3 class="finding-name">CSRF accepted without token — POST http://localhost:9999/csrf-broken</h3>
+        <span class="auth-badge">[as admin]</span>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999/csrf-broken">http://localhost:9999/csrf-broken</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>POST without _csrfToken/csrfmiddlewaretoken/authenticity_token returned HTTP 200</dd>
+        <dt>Probed</dt>
+        <dd><span class="auth-badge">as admin</span></dd>
+        <dt>Fix</dt>
+        <dd>Add CSRF token validation to POST endpoint.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 2</dd>
+      </dl>
+    </article>
+    <article class="finding finding-high" data-category="idor">
+      <header class="finding-header">
+        <span class="severity-badge severity-high">HIGH</span>
+        <h3 class="finding-name">IDOR — primary user can read baseline-owned resource</h3>
+        <span class="auth-badge">[as admin]</span>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999/idor/1">http://localhost:9999/idor/1</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>Primary GET sha256=3ee17fd9823e2753 == baseline GET sha256=3ee17fd9823e2753, both HTTP 200</dd>
+        <dt>Probed</dt>
+        <dd><span class="auth-badge">as admin</span></dd>
+        <dt>Baseline</dt>
+        <dd>baseline owns id=1</dd>
+        <dt>Sessions</dt>
+        <dd>authed (sha256=164a4595)</dd>
+        <dt>Fix</dt>
+        <dd>Add ownership check on idor.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 2</dd>
+      </dl>
+    </article>
+    <article class="finding finding-high" data-category="idor">
+      <header class="finding-header">
+        <span class="severity-badge severity-high">HIGH</span>
+        <h3 class="finding-name">IDOR — primary user can read baseline-owned resource</h3>
+        <span class="auth-badge">[as admin]</span>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999/?id=1">http://localhost:9999/?id=1</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>Primary GET sha256=7ffd061b3f24db49 == baseline GET sha256=7ffd061b3f24db49, both HTTP 200</dd>
+        <dt>Probed</dt>
+        <dd><span class="auth-badge">as admin</span></dd>
+        <dt>Baseline</dt>
+        <dd>baseline owns id=1</dd>
+        <dt>Sessions</dt>
+        <dd>authed (sha256=944d44e3)</dd>
+        <dt>Fix</dt>
+        <dd>Add ownership check on id.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 2</dd>
+      </dl>
+    </article>
+  </section>
+  </section>
+  <section class="fit3048-category" data-category="3">
+    <h2>Category 3: Input validation / Injection <span class="count">[3 findings]</span></h2>
+  <section class="severity-group" data-severity="HIGH">
+    <h3 style="background: #E74C3C;">HIGH (3)</h3>
+    <article class="finding finding-high" data-category="sqli">
+      <header class="finding-header">
+        <span class="severity-badge severity-high">HIGH</span>
+        <h3 class="finding-name">Error-based SQL injection</h3>
+        <span class="auth-badge">[as admin]</span>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999/vulnerable">http://localhost:9999/vulnerable</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>&#x27;you have an error in your sql syntax&#x27; found in response body for payload &quot;&#x27;&quot;</dd>
+        <dt>Probed</dt>
+        <dd><span class="auth-badge">as admin</span></dd>
+        <dt>Fix</dt>
+        <dd>Use parameterised queries / prepared statements; never concatenate user input into SQL.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 3</dd>
+      </dl>
+    </article>
+    <article class="finding finding-high" data-category="xss">
+      <header class="finding-header">
+        <span class="severity-badge severity-high">HIGH</span>
+        <h3 class="finding-name">Reflected XSS</h3>
+        <span class="auth-badge">[as admin]</span>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999/vulnerable">http://localhost:9999/vulnerable</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>payload reflected unescaped in response body</dd>
+        <dt>Probed</dt>
+        <dd><span class="auth-badge">as admin</span></dd>
+        <dt>Fix</dt>
+        <dd>Encode user-supplied output (e.g., htmlspecialchars / framework auto-escape).</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 3</dd>
+      </dl>
+    </article>
+    <article class="finding finding-high" data-category="xss">
+      <header class="finding-header">
+        <span class="severity-badge severity-high">HIGH</span>
+        <h3 class="finding-name">Reflected XSS</h3>
+        <span class="auth-badge">[as admin]</span>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999/reflect-xss">http://localhost:9999/reflect-xss</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>payload reflected unescaped in response body</dd>
+        <dt>Probed</dt>
+        <dd><span class="auth-badge">as admin</span></dd>
+        <dt>Fix</dt>
+        <dd>Encode user-supplied output (e.g., htmlspecialchars / framework auto-escape).</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 3</dd>
+      </dl>
+    </article>
+  </section>
+  </section>
+  <section class="fit3048-category" data-category="4">
+    <h2>Category 4: Security headers &amp; cookies <span class="count">[4 findings]</span></h2>
+  <section class="severity-group" data-severity="MEDIUM">
+    <h3 style="background: #F39C12;">MEDIUM (3)</h3>
+    <article class="finding finding-medium" data-category="headers">
+      <header class="finding-header">
+        <span class="severity-badge severity-medium">MEDIUM</span>
+        <h3 class="finding-name">Missing Content-Security-Policy</h3>
+        <span class="auth-badge">[as admin]</span>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999">http://localhost:9999</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>Content-Security-Policy header absent on response</dd>
+        <dt>Probed</dt>
+        <dd><span class="auth-badge">as admin</span></dd>
+        <dt>Fix</dt>
+        <dd>Add Content-Security-Policy header restricting allowed sources.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 4</dd>
+      </dl>
+    </article>
+    <article class="finding finding-medium" data-category="headers">
+      <header class="finding-header">
+        <span class="severity-badge severity-medium">MEDIUM</span>
+        <h3 class="finding-name">Missing X-Frame-Options</h3>
+        <span class="auth-badge">[as admin]</span>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999">http://localhost:9999</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>X-Frame-Options header absent on response</dd>
+        <dt>Probed</dt>
+        <dd><span class="auth-badge">as admin</span></dd>
+        <dt>Fix</dt>
+        <dd>Set X-Frame-Options: DENY or SAMEORIGIN to prevent clickjacking.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 4</dd>
+      </dl>
+    </article>
+    <article class="finding finding-medium" data-category="cookies">
+      <header class="finding-header">
+        <span class="severity-badge severity-medium">MEDIUM</span>
+        <h3 class="finding-name">Cookie &#x27;PHPSESSID&#x27; missing HttpOnly</h3>
+        <span class="auth-badge">[as admin]</span>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999">http://localhost:9999</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>no HttpOnly attribute on cookie &#x27;PHPSESSID&#x27;</dd>
+        <dt>Probed</dt>
+        <dd><span class="auth-badge">as admin</span></dd>
+        <dt>Fix</dt>
+        <dd>Mark cookie HttpOnly to block JavaScript access.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 4</dd>
+      </dl>
+    </article>
+  </section>
+  <section class="severity-group" data-severity="LOW">
+    <h3 style="background: #3498DB;">LOW (1)</h3>
+    <article class="finding finding-low" data-category="cookies">
+      <header class="finding-header">
+        <span class="severity-badge severity-low">LOW</span>
+        <h3 class="finding-name">Cookie &#x27;PHPSESSID&#x27; missing SameSite</h3>
+        <span class="auth-badge">[as admin]</span>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999">http://localhost:9999</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>no SameSite attribute on cookie &#x27;PHPSESSID&#x27;</dd>
+        <dt>Probed</dt>
+        <dd><span class="auth-badge">as admin</span></dd>
+        <dt>Fix</dt>
+        <dd>Set SameSite=Strict or Lax to mitigate CSRF.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 4</dd>
+      </dl>
+    </article>
+  </section>
+  </section>
+  <section class="fit3048-category" data-category="5">
+    <h2>Category 5: Crypto / SSL / Sessions <span class="count">[2 findings]</span></h2>
+  <section class="severity-group" data-severity="HIGH">
+    <h3 style="background: #E74C3C;">HIGH (1)</h3>
+    <article class="finding finding-high" data-category="session">
+      <header class="finding-header">
+        <span class="severity-badge severity-high">HIGH</span>
+        <h3 class="finding-name">Session cookie still valid after logout</h3>
+        <span class="auth-badge">[as admin]</span>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999">http://localhost:9999</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>Authed page rendered identically before and after a logout request: pre-logout 200/7ffd061b, post-logout 200/7ffd061b — body sha256 IDENTICAL.</dd>
+        <dt>Probed</dt>
+        <dd><span class="auth-badge">as admin</span></dd>
+        <dt>Fix</dt>
+        <dd>Invalidate session server-side on logout (call session.clear() / session.invalidate() / equivalent); do not rely on client-side cookie deletion alone.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 5</dd>
+      </dl>
+    </article>
+  </section>
+  <section class="severity-group" data-severity="MEDIUM">
+    <h3 style="background: #F39C12;">MEDIUM (1)</h3>
+    <article class="finding finding-medium" data-category="session">
+      <header class="finding-header">
+        <span class="severity-badge severity-medium">MEDIUM</span>
+        <h3 class="finding-name">Session ID not regenerated on login</h3>
+        <span class="auth-badge">[as admin]</span>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999/login">http://localhost:9999/login</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>Pre-login cookie PHPSESSID=CTsZjbz7; post-login cookie PHPSESSID=CTsZjbz7; identical.</dd>
+        <dt>Probed</dt>
+        <dd><span class="auth-badge">as admin</span></dd>
+        <dt>Fix</dt>
+        <dd>Regenerate session ID on authentication state transition (login/logout). Most frameworks have a session.regenerate() / session.regenerate_id() helper.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 5</dd>
+      </dl>
+    </article>
+  </section>
+  </section>
+  <section class="fit3048-category fit3048-empty" data-category="6">
+    <h2>Category 6: Information disclosure</h2>
+    <p class="empty-reason">(no findings)</p>
+  </section>
+  <section class="fit3048-category" data-category="7">
+    <h2>Category 7: Brute force / Lockout <span class="count">[2 findings]</span></h2>
+  <section class="severity-group" data-severity="HIGH">
+    <h3 style="background: #E74C3C;">HIGH (1)</h3>
+    <article class="finding finding-high" data-category="error_leakage">
+      <header class="finding-header">
+        <span class="severity-badge severity-high">HIGH</span>
+        <h3 class="finding-name">Login response differs for known vs unknown username</h3>
+        <span class="auth-badge">[as admin]</span>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999/login">http://localhost:9999/login</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>Probed as user=&#x27;admin&#x27; (real) and a synthesized unknown user; differing axes: status (200 vs 401), final URL (http://localhost:9999/ vs http://localhost:9999/login), body sha256, error text (&#x27;&lt;!DOCTYPE html&gt;&#x27; vs &#x27;Unknown user&#x27;). real user → HTTP 200 &#x27;&lt;!DOCTYPE html&gt;&#x27;; unknown user → HTTP 401 &#x27;Unknown user&#x27;.</dd>
+        <dt>Probed</dt>
+        <dd><span class="auth-badge">as admin</span></dd>
+        <dt>Fix</dt>
+        <dd>Return identical response shape regardless of whether the username exists; both should fail with a generic &#x27;Invalid credentials&#x27; message.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 7</dd>
+      </dl>
+    </article>
+  </section>
+  <section class="severity-group" data-severity="MEDIUM">
+    <h3 style="background: #F39C12;">MEDIUM (1)</h3>
+    <article class="finding finding-medium" data-category="brute_force">
+      <header class="finding-header">
+        <span class="severity-badge severity-medium">MEDIUM</span>
+        <h3 class="finding-name">No lockout detected after 6 wrong-password attempts</h3>
+        <span class="auth-badge">[as admin]</span>
+      </header>
+      <dl class="finding-fields">
+        <dt>URL</dt>
+        <dd>
+          <!-- DO NOT WRAP — clipboard JS depends on previousElementSibling -->
+          <a href="http://localhost:9999/login">http://localhost:9999/login</a><button class="copy-btn" type="button">Copy</button>
+        </dd>
+        <dt>Evidence</dt>
+        <dd>6 sequential POSTs with synthesized wrong passwords (1s apart) returned identical (status, body sha256).</dd>
+        <dt>Probed</dt>
+        <dd><span class="auth-badge">as admin</span></dd>
+        <dt>Fix</dt>
+        <dd>Implement account lockout, rate limiting, or progressive delays after repeated failures.</dd>
+        <dt>FIT3048</dt>
+        <dd>Category 7</dd>
+      </dl>
+    </article>
+  </section>
+  </section>
+  </section>
+  <script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const a = btn.previousElementSibling;
+      const url = a.href || a.textContent;
+      try {
+        await navigator.clipboard.writeText(url);
+        flash(btn, 'Copied');
+      } catch {
+        const range = document.createRange();
+        range.selectNodeContents(a);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        flash(btn, 'Selected — Ctrl+C');
+      }
+    });
+  });
+});
+function flash(btn, msg) {
+  const orig = btn.textContent;
+  btn.textContent = msg;
+  setTimeout(() => { btn.textContent = orig; }, 1200);
+}
+  </script>
+</body>
+</html>

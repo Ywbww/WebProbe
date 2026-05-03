@@ -1,0 +1,81 @@
+[MEDIUM] Missing Content-Security-Policy — http://localhost:9999
+[MEDIUM] Missing X-Frame-Options — http://localhost:9999
+[MEDIUM] Cookie 'PHPSESSID' missing HttpOnly — http://localhost:9999
+[LOW] Cookie 'PHPSESSID' missing SameSite — http://localhost:9999
+[MEDIUM] Exposed path: /server-info — http://localhost:9999/server-info
+[MEDIUM] Exposed path: /cpanel — http://localhost:9999/cpanel
+[HIGH] Exposed path: /.htaccess — http://localhost:9999/.htaccess
+[MEDIUM] Stack trace leakage on http://localhost:9999/search?q=' — http://localhost:9999/search?q='
+WebProbe v2.0
+Target:        http://localhost:9999
+Auth:          Unauthenticated
+Modules:       []
+─────────────────────────────────────────────
+═══════════════ SCAN COVERAGE ═══════════════
+Mode: Unauthenticated
+Sessions: 0
+URLs probed: 167 (0 sitemap, 0 robots, 0 url-list, 3 dynamic, 164 curated)
+Modules fired: 12/12 (no errors)
+Duration: 0.2s
+═══════════════ FINDINGS ═══════════════
+[CRITICAL × 0] [HIGH × 1] [MEDIUM × 6] [LOW × 1] [INFO × 0]
+
+[HIGH] Exposed path: /.htaccess
+     URL:        http://localhost:9999/.htaccess
+     Evidence:   HTTP 200 on /.htaccess
+     Fix:        Block public access to this path; remove the file or restrict via web-server config / .gitignore.
+     FIT3048:    Category 1
+
+[MEDIUM] Cookie 'PHPSESSID' missing HttpOnly
+     URL:        http://localhost:9999
+     Evidence:   no HttpOnly attribute on cookie 'PHPSESSID'
+     Fix:        Mark cookie HttpOnly to block JavaScript access.
+     FIT3048:    Category 4
+
+[MEDIUM] Stack trace leakage on http://localhost:9999/search?q='
+     URL:        http://localhost:9999/search?q='
+     Evidence:   Pattern 'Traceback (most recent call last):' found in response body.
+                 First 200 chars of leak: Traceback (most recent call last):   File
+                 "/app/views/search.py", line 42, in search     cursor.execute(f"SELECT
+                 * FROM items WHERE name = '{q}'")   File
+                 "/usr/lib/python3.11/sqlite3/dbapi2.py", line
+     Fix:        Configure framework to suppress stack traces in production; route exceptions to a generic error page.
+     FIT3048:    Category 1
+
+[MEDIUM] Missing Content-Security-Policy
+     URL:        http://localhost:9999
+     Evidence:   Content-Security-Policy header absent on response
+     Fix:        Add Content-Security-Policy header restricting allowed sources.
+     FIT3048:    Category 4
+
+[MEDIUM] Missing X-Frame-Options
+     URL:        http://localhost:9999
+     Evidence:   X-Frame-Options header absent on response
+     Fix:        Set X-Frame-Options: DENY or SAMEORIGIN to prevent clickjacking.
+     FIT3048:    Category 4
+
+[MEDIUM] Exposed path: /server-info
+     URL:        http://localhost:9999/server-info
+     Evidence:   HTTP 200 on /server-info
+     Fix:        Block public access to this path; remove the file or restrict via web-server config / .gitignore.
+     FIT3048:    Category 1
+
+[MEDIUM] Exposed path: /cpanel
+     URL:        http://localhost:9999/cpanel
+     Evidence:   HTTP 200 on /cpanel
+     Fix:        Block public access to this path; remove the file or restrict via web-server config / .gitignore.
+     FIT3048:    Category 1
+
+[LOW] Cookie 'PHPSESSID' missing SameSite
+     URL:        http://localhost:9999
+     Evidence:   no SameSite attribute on cookie 'PHPSESSID'
+     Fix:        Set SameSite=Strict or Lax to mitigate CSRF.
+     FIT3048:    Category 4
+Target:    http://localhost:9999
+Modules:   12 scheduled, 12 completed, 0 errored
+Findings:  8 (0 CRIT, 1 HIGH, 6 MED, 1 LOW, 0 INFO)
+Reports written:
+  HTML: webprobe_localhost_9999_20260503_175944.html
+  TXT : webprobe_localhost_9999_20260503_175944.txt
+  JSON: webprobe_localhost_9999_20260503_175944.json
+Duration:  0.2s

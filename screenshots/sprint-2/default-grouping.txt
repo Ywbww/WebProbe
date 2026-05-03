@@ -1,0 +1,202 @@
+WebProbe v2.0
+Target:        http://localhost:9999
+Auth:          form-login (2 sessions: admin, alice)
+Modules:       []
+─────────────────────────────────────────────
+
+═══════════════ SCAN COVERAGE ═══════════════
+Mode: Authenticated, dual-session
+Sessions: 2 (admin, alice)
+URLs probed: 170 (0 sitemap, 0 robots, 3 url-list, 3 dynamic, 164 curated)
+Modules fired: 12/12 (no errors)
+Duration: 5.4s
+
+═══════════════ FINDINGS ═══════════════
+[CRITICAL × 0] [HIGH × 10] [MEDIUM × 11] [LOW × 1] [INFO × 1]
+
+[HIGH] Admin-shape page reachable: /admin/
+     URL:        http://localhost:9999/admin/
+     Evidence:   HTTP 200 with admin-shaped HTML (contains 'All Users').
+     Probed:     as admin
+     Fix:        Add an admin role check on /admin/.
+     FIT3048:    Category 2
+
+[HIGH] CSRF accepted without token — POST http://localhost:9999/csrf-broken
+     URL:        http://localhost:9999/csrf-broken
+     Evidence:   POST without _csrfToken/csrfmiddlewaretoken/authenticity_token
+                 returned HTTP 200
+     Probed:     as admin
+     Fix:        Add CSRF token validation to POST endpoint.
+     FIT3048:    Category 2
+
+[HIGH] Login response differs for known vs unknown username
+     URL:        http://localhost:9999/login
+     Evidence:   Probed as user='admin' (real) and a synthesized unknown user;
+                 differing axes: status (200 vs 401), final URL (http://localhost:9999/
+                 vs http://localhost:9999/login), body sha256, error text ('<!DOCTYPE
+                 html>' vs 'Unknown user'). real user → HTTP 200 '<!DOCTYPE html>';
+                 unknown user → HTTP 401 'Unknown user'.
+     Probed:     as admin
+     Fix:        Return identical response shape regardless of whether the username exists; both should fail with a generic 'Invalid credentials' message.
+     FIT3048:    Category 7
+
+[HIGH] IDOR — primary user can read baseline-owned resource
+     URL:        http://localhost:9999/idor/1
+     Evidence:   Primary GET sha256=3ee17fd9823e2753 == baseline GET
+                 sha256=3ee17fd9823e2753, both HTTP 200
+     Probed:     as admin
+     Baseline:   baseline owns id=1
+     Sessions:   authed (sha256=164a4595)
+     Fix:        Add ownership check on idor.
+     FIT3048:    Category 2
+
+[HIGH] IDOR — primary user can read baseline-owned resource
+     URL:        http://localhost:9999/?id=1
+     Evidence:   Primary GET sha256=7ffd061b3f24db49 == baseline GET
+                 sha256=7ffd061b3f24db49, both HTTP 200
+     Probed:     as admin
+     Baseline:   baseline owns id=1
+     Sessions:   authed (sha256=944d44e3)
+     Fix:        Add ownership check on id.
+     FIT3048:    Category 2
+
+[HIGH] Exposed path: /.htaccess
+     URL:        http://localhost:9999/.htaccess
+     Evidence:   HTTP 200 on /.htaccess
+     Fix:        Block public access to this path; remove the file or restrict via web-server config / .gitignore.
+     FIT3048:    Category 1
+
+[HIGH] Session cookie still valid after logout
+     URL:        http://localhost:9999
+     Evidence:   Authed page rendered identically before and after a logout request:
+                 pre-logout 200/7ffd061b, post-logout 200/7ffd061b — body sha256
+                 IDENTICAL.
+     Probed:     as admin
+     Fix:        Invalidate session server-side on logout (call session.clear() / session.invalidate() / equivalent); do not rely on client-side cookie deletion alone.
+     FIT3048:    Category 5
+
+[HIGH] Error-based SQL injection
+     URL:        http://localhost:9999/vulnerable
+     Evidence:   'you have an error in your sql syntax' found in response body for
+                 payload "'"
+     Probed:     as admin
+     Fix:        Use parameterised queries / prepared statements; never concatenate user input into SQL.
+     FIT3048:    Category 3
+
+[HIGH] Reflected XSS
+     URL:        http://localhost:9999/vulnerable
+     Evidence:   payload reflected unescaped in response body
+     Probed:     as admin
+     Fix:        Encode user-supplied output (e.g., htmlspecialchars / framework auto-escape).
+     FIT3048:    Category 3
+
+[HIGH] Reflected XSS
+     URL:        http://localhost:9999/reflect-xss
+     Evidence:   payload reflected unescaped in response body
+     Probed:     as admin
+     Fix:        Encode user-supplied output (e.g., htmlspecialchars / framework auto-escape).
+     FIT3048:    Category 3
+
+[MEDIUM] No lockout detected after 6 wrong-password attempts
+     URL:        http://localhost:9999/login
+     Evidence:   6 sequential POSTs with synthesized wrong passwords (1s apart)
+                 returned identical (status, body sha256).
+     Probed:     as admin
+     Fix:        Implement account lockout, rate limiting, or progressive delays after repeated failures.
+     FIT3048:    Category 7
+
+[MEDIUM] Cookie 'PHPSESSID' missing HttpOnly
+     URL:        http://localhost:9999
+     Evidence:   no HttpOnly attribute on cookie 'PHPSESSID'
+     Probed:     as admin
+     Fix:        Mark cookie HttpOnly to block JavaScript access.
+     FIT3048:    Category 4
+
+[MEDIUM] Stack trace leakage on http://localhost:9999/search?q='
+     URL:        http://localhost:9999/search?q='
+     Evidence:   Pattern 'Traceback (most recent call last):' found in response body.
+                 First 200 chars of leak: Traceback (most recent call last):   File
+                 "/app/views/search.py", line 42, in search     cursor.execute(f"SELECT
+                 * FROM items WHERE name = '{q}'")   File
+                 "/usr/lib/python3.11/sqlite3/dbapi2.py", line
+     Probed:     as admin
+     Fix:        Configure framework to suppress stack traces in production; route exceptions to a generic error page.
+     FIT3048:    Category 1
+
+[MEDIUM] Missing Content-Security-Policy
+     URL:        http://localhost:9999
+     Evidence:   Content-Security-Policy header absent on response
+     Probed:     as admin
+     Fix:        Add Content-Security-Policy header restricting allowed sources.
+     FIT3048:    Category 4
+
+[MEDIUM] Missing X-Frame-Options
+     URL:        http://localhost:9999
+     Evidence:   X-Frame-Options header absent on response
+     Probed:     as admin
+     Fix:        Set X-Frame-Options: DENY or SAMEORIGIN to prevent clickjacking.
+     FIT3048:    Category 4
+
+[MEDIUM] Exposed path: /idor/1
+     URL:        http://localhost:9999/idor/1
+     Evidence:   HTTP 200 on /idor/1
+     Fix:        Block public access to this path; remove the file or restrict via web-server config / .gitignore.
+     FIT3048:    Category 1
+
+[MEDIUM] Exposed path: /reflect-xss
+     URL:        http://localhost:9999/reflect-xss?q=test
+     Evidence:   HTTP 200 on /reflect-xss
+     Fix:        Block public access to this path; remove the file or restrict via web-server config / .gitignore.
+     FIT3048:    Category 1
+
+[MEDIUM] Exposed path: /vulnerable
+     URL:        http://localhost:9999/vulnerable?q=test
+     Evidence:   HTTP 200 on /vulnerable
+     Fix:        Block public access to this path; remove the file or restrict via web-server config / .gitignore.
+     FIT3048:    Category 1
+
+[MEDIUM] Exposed path: /server-info
+     URL:        http://localhost:9999/server-info
+     Evidence:   HTTP 200 on /server-info
+     Fix:        Block public access to this path; remove the file or restrict via web-server config / .gitignore.
+     FIT3048:    Category 1
+
+[MEDIUM] Exposed path: /cpanel
+     URL:        http://localhost:9999/cpanel
+     Evidence:   HTTP 200 on /cpanel
+     Fix:        Block public access to this path; remove the file or restrict via web-server config / .gitignore.
+     FIT3048:    Category 1
+
+[MEDIUM] Session ID not regenerated on login
+     URL:        http://localhost:9999/login
+     Evidence:   Pre-login cookie PHPSESSID=pK-mUVdq; post-login cookie PHPSESSID=pK-
+                 mUVdq; identical.
+     Probed:     as admin
+     Fix:        Regenerate session ID on authentication state transition (login/logout). Most frameworks have a session.regenerate() / session.regenerate_id() helper.
+     FIT3048:    Category 5
+
+[LOW] Cookie 'PHPSESSID' missing SameSite
+     URL:        http://localhost:9999
+     Evidence:   no SameSite attribute on cookie 'PHPSESSID'
+     Probed:     as admin
+     Fix:        Set SameSite=Strict or Lax to mitigate CSRF.
+     FIT3048:    Category 4
+
+[INFO] Authenticated and anonymous responses are identical
+     URL:        http://localhost:9999
+     Evidence:   GET http://localhost:9999 returned byte-identical bodies for
+                 authenticated and anonymous sessions (sha256 prefix 8f857ffda18871bf).
+                 The target may not be honoring the supplied credentials, or the page
+                 is intentionally public — auth-required modules may produce false
+                 negatives.
+     Fix:        Verify --auth-form / --cookie credentials by browsing the target manually with the same auth shape, or pick a target URL that gates content behind authentication.
+     FIT3048:    Category 1
+
+Target:    http://localhost:9999
+Modules:   12 scheduled, 12 completed, 0 errored
+Findings:  23 (0 CRIT, 10 HIGH, 11 MED, 1 LOW, 1 INFO)
+Reports written:
+  HTML: webprobe_localhost_9999_20260503_175933.html
+  TXT : webprobe_localhost_9999_20260503_175933.txt
+  JSON: webprobe_localhost_9999_20260503_175933.json
+Duration:  5.4s

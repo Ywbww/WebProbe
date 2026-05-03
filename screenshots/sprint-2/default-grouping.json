@@ -1,0 +1,481 @@
+{
+  "version": "2.0",
+  "tool": {
+    "name": "webprobe",
+    "version": "2.0"
+  },
+  "scan": {
+    "target": "http://localhost:9999",
+    "started_at": "2026-05-03T17:59:33.681199+10:00",
+    "completed_at": "2026-05-03T17:59:39.105286+10:00",
+    "duration_seconds": 5.424095153808594,
+    "exit_code": 0,
+    "errored_modules": [],
+    "risk_gates_asserted": []
+  },
+  "scan_coverage": {
+    "mode": "Authenticated, dual-session",
+    "sessions": [
+      "admin",
+      "alice"
+    ],
+    "urls_probed": {
+      "total": 170,
+      "by_source": {
+        "sitemap": 0,
+        "robots": 0,
+        "url_list": 3,
+        "dynamic": 3,
+        "curated": 164
+      }
+    },
+    "modules_fired": {
+      "scheduled": 12,
+      "completed": 12,
+      "errored": 0
+    },
+    "duration_seconds": 5.424095153808594,
+    "login_probe": null,
+    "session_check": null,
+    "logout_test": null,
+    "per_module_source_filter": [],
+    "wildcard_intents": null
+  },
+  "findings": [
+    {
+      "severity": "INFO",
+      "category": "auth",
+      "finding_type": "session_ambiguous",
+      "name": "Authenticated and anonymous responses are identical",
+      "url": "http://localhost:9999",
+      "payload": null,
+      "evidence": "GET http://localhost:9999 returned byte-identical bodies for authenticated and anonymous sessions (sha256 prefix 8f857ffda18871bf). The target may not be honoring the supplied credentials, or the page is intentionally public — auth-required modules may produce false negatives.",
+      "evidence_hash": "b88997422cd0fc9f",
+      "poc_url": null,
+      "parameter": null,
+      "remediation": "Verify --auth-form / --cookie credentials by browsing the target manually with the same auth shape, or pick a target URL that gates content behind authentication.",
+      "fit3048_category": 1,
+      "auth_context": null,
+      "baseline_context": null,
+      "seen_in": []
+    },
+    {
+      "severity": "MEDIUM",
+      "category": "headers",
+      "finding_type": "missing_csp",
+      "name": "Missing Content-Security-Policy",
+      "url": "http://localhost:9999",
+      "payload": null,
+      "evidence": "Content-Security-Policy header absent on response",
+      "evidence_hash": "30bd6303d353b87a",
+      "poc_url": null,
+      "parameter": null,
+      "remediation": "Add Content-Security-Policy header restricting allowed sources.",
+      "fit3048_category": 4,
+      "auth_context": "as admin",
+      "baseline_context": null,
+      "seen_in": [
+        "authed"
+      ]
+    },
+    {
+      "severity": "MEDIUM",
+      "category": "headers",
+      "finding_type": "missing_x_frame_options",
+      "name": "Missing X-Frame-Options",
+      "url": "http://localhost:9999",
+      "payload": null,
+      "evidence": "X-Frame-Options header absent on response",
+      "evidence_hash": "9bc14284e5760809",
+      "poc_url": null,
+      "parameter": null,
+      "remediation": "Set X-Frame-Options: DENY or SAMEORIGIN to prevent clickjacking.",
+      "fit3048_category": 4,
+      "auth_context": "as admin",
+      "baseline_context": null,
+      "seen_in": [
+        "authed"
+      ]
+    },
+    {
+      "severity": "MEDIUM",
+      "category": "cookies",
+      "finding_type": "cookie_no_httponly",
+      "name": "Cookie 'PHPSESSID' missing HttpOnly",
+      "url": "http://localhost:9999",
+      "payload": null,
+      "evidence": "no HttpOnly attribute on cookie 'PHPSESSID'",
+      "evidence_hash": "f10c5b739f307b65",
+      "poc_url": null,
+      "parameter": null,
+      "remediation": "Mark cookie HttpOnly to block JavaScript access.",
+      "fit3048_category": 4,
+      "auth_context": "as admin",
+      "baseline_context": null,
+      "seen_in": [
+        "authed"
+      ]
+    },
+    {
+      "severity": "LOW",
+      "category": "cookies",
+      "finding_type": "cookie_no_samesite",
+      "name": "Cookie 'PHPSESSID' missing SameSite",
+      "url": "http://localhost:9999",
+      "payload": null,
+      "evidence": "no SameSite attribute on cookie 'PHPSESSID'",
+      "evidence_hash": "28c6e587fc7fcc3e",
+      "poc_url": null,
+      "parameter": null,
+      "remediation": "Set SameSite=Strict or Lax to mitigate CSRF.",
+      "fit3048_category": 4,
+      "auth_context": "as admin",
+      "baseline_context": null,
+      "seen_in": [
+        "authed"
+      ]
+    },
+    {
+      "severity": "MEDIUM",
+      "category": "paths",
+      "finding_type": "sensitive_path_exposed_medium",
+      "name": "Exposed path: /idor/1",
+      "url": "http://localhost:9999/idor/1",
+      "payload": null,
+      "evidence": "HTTP 200 on /idor/1",
+      "evidence_hash": "c1c6bc4861cc1c0b",
+      "poc_url": "http://localhost:9999/idor/1",
+      "parameter": null,
+      "remediation": "Block public access to this path; remove the file or restrict via web-server config / .gitignore.",
+      "fit3048_category": 1,
+      "auth_context": null,
+      "baseline_context": null,
+      "seen_in": [
+        "unauth"
+      ]
+    },
+    {
+      "severity": "MEDIUM",
+      "category": "paths",
+      "finding_type": "sensitive_path_exposed_medium",
+      "name": "Exposed path: /reflect-xss",
+      "url": "http://localhost:9999/reflect-xss?q=test",
+      "payload": null,
+      "evidence": "HTTP 200 on /reflect-xss",
+      "evidence_hash": "d1e61389398f8b31",
+      "poc_url": "http://localhost:9999/reflect-xss?q=test",
+      "parameter": null,
+      "remediation": "Block public access to this path; remove the file or restrict via web-server config / .gitignore.",
+      "fit3048_category": 1,
+      "auth_context": null,
+      "baseline_context": null,
+      "seen_in": [
+        "unauth"
+      ]
+    },
+    {
+      "severity": "MEDIUM",
+      "category": "paths",
+      "finding_type": "sensitive_path_exposed_medium",
+      "name": "Exposed path: /vulnerable",
+      "url": "http://localhost:9999/vulnerable?q=test",
+      "payload": null,
+      "evidence": "HTTP 200 on /vulnerable",
+      "evidence_hash": "bc2ceae8c8de3a69",
+      "poc_url": "http://localhost:9999/vulnerable?q=test",
+      "parameter": null,
+      "remediation": "Block public access to this path; remove the file or restrict via web-server config / .gitignore.",
+      "fit3048_category": 1,
+      "auth_context": null,
+      "baseline_context": null,
+      "seen_in": [
+        "unauth"
+      ]
+    },
+    {
+      "severity": "MEDIUM",
+      "category": "paths",
+      "finding_type": "sensitive_path_exposed_medium",
+      "name": "Exposed path: /server-info",
+      "url": "http://localhost:9999/server-info",
+      "payload": null,
+      "evidence": "HTTP 200 on /server-info",
+      "evidence_hash": "b7abe08bc7c014be",
+      "poc_url": "http://localhost:9999/server-info",
+      "parameter": null,
+      "remediation": "Block public access to this path; remove the file or restrict via web-server config / .gitignore.",
+      "fit3048_category": 1,
+      "auth_context": null,
+      "baseline_context": null,
+      "seen_in": [
+        "unauth"
+      ]
+    },
+    {
+      "severity": "MEDIUM",
+      "category": "paths",
+      "finding_type": "sensitive_path_exposed_medium",
+      "name": "Exposed path: /cpanel",
+      "url": "http://localhost:9999/cpanel",
+      "payload": null,
+      "evidence": "HTTP 200 on /cpanel",
+      "evidence_hash": "0c5c74a6aa462b07",
+      "poc_url": "http://localhost:9999/cpanel",
+      "parameter": null,
+      "remediation": "Block public access to this path; remove the file or restrict via web-server config / .gitignore.",
+      "fit3048_category": 1,
+      "auth_context": null,
+      "baseline_context": null,
+      "seen_in": [
+        "unauth"
+      ]
+    },
+    {
+      "severity": "HIGH",
+      "category": "paths",
+      "finding_type": "sensitive_path_exposed_high",
+      "name": "Exposed path: /.htaccess",
+      "url": "http://localhost:9999/.htaccess",
+      "payload": null,
+      "evidence": "HTTP 200 on /.htaccess",
+      "evidence_hash": "36779a4ccb1948f2",
+      "poc_url": "http://localhost:9999/.htaccess",
+      "parameter": null,
+      "remediation": "Block public access to this path; remove the file or restrict via web-server config / .gitignore.",
+      "fit3048_category": 1,
+      "auth_context": null,
+      "baseline_context": null,
+      "seen_in": [
+        "unauth"
+      ]
+    },
+    {
+      "severity": "HIGH",
+      "category": "sqli",
+      "finding_type": "sqli_error_string",
+      "name": "Error-based SQL injection",
+      "url": "http://localhost:9999/vulnerable",
+      "payload": "'",
+      "evidence": "'you have an error in your sql syntax' found in response body for payload \"'\"",
+      "evidence_hash": "de03719e47f0a24a",
+      "poc_url": "http://localhost:9999/vulnerable?q=%27",
+      "parameter": "q",
+      "remediation": "Use parameterised queries / prepared statements; never concatenate user input into SQL.",
+      "fit3048_category": 3,
+      "auth_context": "as admin",
+      "baseline_context": null,
+      "seen_in": [
+        "authed"
+      ]
+    },
+    {
+      "severity": "HIGH",
+      "category": "xss",
+      "finding_type": "reflected_xss",
+      "name": "Reflected XSS",
+      "url": "http://localhost:9999/vulnerable",
+      "payload": "<script>alert(1)</script>",
+      "evidence": "payload reflected unescaped in response body",
+      "evidence_hash": "adf4046b92ea0273",
+      "poc_url": "http://localhost:9999/vulnerable?q=%3Cscript%3Ealert%281%29%3C/script%3E",
+      "parameter": "q",
+      "remediation": "Encode user-supplied output (e.g., htmlspecialchars / framework auto-escape).",
+      "fit3048_category": 3,
+      "auth_context": "as admin",
+      "baseline_context": null,
+      "seen_in": [
+        "authed"
+      ]
+    },
+    {
+      "severity": "HIGH",
+      "category": "xss",
+      "finding_type": "reflected_xss",
+      "name": "Reflected XSS",
+      "url": "http://localhost:9999/reflect-xss",
+      "payload": "<script>alert(1)</script>",
+      "evidence": "payload reflected unescaped in response body",
+      "evidence_hash": "2826738d483508b2",
+      "poc_url": "http://localhost:9999/reflect-xss?q=%3Cscript%3Ealert%281%29%3C/script%3E",
+      "parameter": "q",
+      "remediation": "Encode user-supplied output (e.g., htmlspecialchars / framework auto-escape).",
+      "fit3048_category": 3,
+      "auth_context": "as admin",
+      "baseline_context": null,
+      "seen_in": [
+        "authed"
+      ]
+    },
+    {
+      "severity": "HIGH",
+      "category": "access_control",
+      "finding_type": "role_violation",
+      "name": "Admin-shape page reachable: /admin/",
+      "url": "http://localhost:9999/admin/",
+      "payload": null,
+      "evidence": "HTTP 200 with admin-shaped HTML (contains 'All Users').",
+      "evidence_hash": "e52ebb5e21f8a161",
+      "poc_url": null,
+      "parameter": null,
+      "remediation": "Add an admin role check on /admin/.",
+      "fit3048_category": 2,
+      "auth_context": "as admin",
+      "baseline_context": null,
+      "seen_in": [
+        "authed"
+      ]
+    },
+    {
+      "severity": "MEDIUM",
+      "category": "brute_force",
+      "finding_type": "no_lockout",
+      "name": "No lockout detected after 6 wrong-password attempts",
+      "url": "http://localhost:9999/login",
+      "payload": null,
+      "evidence": "6 sequential POSTs with synthesized wrong passwords (1s apart) returned identical (status, body sha256).",
+      "evidence_hash": "91e16e491f202594",
+      "poc_url": null,
+      "parameter": null,
+      "remediation": "Implement account lockout, rate limiting, or progressive delays after repeated failures.",
+      "fit3048_category": 7,
+      "auth_context": "as admin",
+      "baseline_context": null,
+      "seen_in": [
+        "authed"
+      ]
+    },
+    {
+      "severity": "HIGH",
+      "category": "csrf",
+      "finding_type": "csrf_missing",
+      "name": "CSRF accepted without token — POST http://localhost:9999/csrf-broken",
+      "url": "http://localhost:9999/csrf-broken",
+      "payload": null,
+      "evidence": "POST without _csrfToken/csrfmiddlewaretoken/authenticity_token returned HTTP 200",
+      "evidence_hash": "7028690452aa7ccb",
+      "poc_url": null,
+      "parameter": null,
+      "remediation": "Add CSRF token validation to POST endpoint.",
+      "fit3048_category": 2,
+      "auth_context": "as admin",
+      "baseline_context": null,
+      "seen_in": [
+        "authed"
+      ]
+    },
+    {
+      "severity": "HIGH",
+      "category": "error_leakage",
+      "finding_type": "username_enumeration_login",
+      "name": "Login response differs for known vs unknown username",
+      "url": "http://localhost:9999/login",
+      "payload": null,
+      "evidence": "Probed as user='admin' (real) and a synthesized unknown user; differing axes: status (200 vs 401), final URL (http://localhost:9999/ vs http://localhost:9999/login), body sha256, error text ('<!DOCTYPE html>' vs 'Unknown user'). real user → HTTP 200 '<!DOCTYPE html>'; unknown user → HTTP 401 'Unknown user'.",
+      "evidence_hash": "01ae75d70509bdfc",
+      "poc_url": null,
+      "parameter": null,
+      "remediation": "Return identical response shape regardless of whether the username exists; both should fail with a generic 'Invalid credentials' message.",
+      "fit3048_category": 7,
+      "auth_context": "as admin",
+      "baseline_context": null,
+      "seen_in": [
+        "authed"
+      ]
+    },
+    {
+      "severity": "MEDIUM",
+      "category": "error_leakage",
+      "finding_type": "stack_trace_leakage",
+      "name": "Stack trace leakage on http://localhost:9999/search?q='",
+      "url": "http://localhost:9999/search?q='",
+      "payload": null,
+      "evidence": "Pattern 'Traceback (most recent call last):' found in response body. First 200 chars of leak: Traceback (most recent call last):   File \"/app/views/search.py\", line 42, in search     cursor.execute(f\"SELECT * FROM items WHERE name = '{q}'\")   File \"/usr/lib/python3.11/sqlite3/dbapi2.py\", line",
+      "evidence_hash": "be3d7d69696426da",
+      "poc_url": null,
+      "parameter": null,
+      "remediation": "Configure framework to suppress stack traces in production; route exceptions to a generic error page.",
+      "fit3048_category": 1,
+      "auth_context": "as admin",
+      "baseline_context": null,
+      "seen_in": [
+        "authed"
+      ]
+    },
+    {
+      "severity": "HIGH",
+      "category": "idor",
+      "finding_type": "cross_account_leak",
+      "name": "IDOR — primary user can read baseline-owned resource",
+      "url": "http://localhost:9999/idor/1",
+      "payload": null,
+      "evidence": "Primary GET sha256=3ee17fd9823e2753 == baseline GET sha256=3ee17fd9823e2753, both HTTP 200",
+      "evidence_hash": "164a45958d7c9086",
+      "poc_url": null,
+      "parameter": null,
+      "remediation": "Add ownership check on idor.",
+      "fit3048_category": 2,
+      "auth_context": "as admin",
+      "baseline_context": "baseline owns id=1",
+      "seen_in": [
+        "authed"
+      ]
+    },
+    {
+      "severity": "HIGH",
+      "category": "idor",
+      "finding_type": "cross_account_leak",
+      "name": "IDOR — primary user can read baseline-owned resource",
+      "url": "http://localhost:9999/?id=1",
+      "payload": null,
+      "evidence": "Primary GET sha256=7ffd061b3f24db49 == baseline GET sha256=7ffd061b3f24db49, both HTTP 200",
+      "evidence_hash": "944d44e3ec2164a7",
+      "poc_url": null,
+      "parameter": null,
+      "remediation": "Add ownership check on id.",
+      "fit3048_category": 2,
+      "auth_context": "as admin",
+      "baseline_context": "baseline owns id=1",
+      "seen_in": [
+        "authed"
+      ]
+    },
+    {
+      "severity": "HIGH",
+      "category": "session",
+      "finding_type": "session_persists_post_logout",
+      "name": "Session cookie still valid after logout",
+      "url": "http://localhost:9999",
+      "payload": null,
+      "evidence": "Authed page rendered identically before and after a logout request: pre-logout 200/7ffd061b, post-logout 200/7ffd061b — body sha256 IDENTICAL.",
+      "evidence_hash": "258219e18affd952",
+      "poc_url": null,
+      "parameter": null,
+      "remediation": "Invalidate session server-side on logout (call session.clear() / session.invalidate() / equivalent); do not rely on client-side cookie deletion alone.",
+      "fit3048_category": 5,
+      "auth_context": "as admin",
+      "baseline_context": null,
+      "seen_in": [
+        "authed"
+      ]
+    },
+    {
+      "severity": "MEDIUM",
+      "category": "session",
+      "finding_type": "session_fixation",
+      "name": "Session ID not regenerated on login",
+      "url": "http://localhost:9999/login",
+      "payload": null,
+      "evidence": "Pre-login cookie PHPSESSID=pK-mUVdq; post-login cookie PHPSESSID=pK-mUVdq; identical.",
+      "evidence_hash": "bc0c8eaf731ca647",
+      "poc_url": null,
+      "parameter": null,
+      "remediation": "Regenerate session ID on authentication state transition (login/logout). Most frameworks have a session.regenerate() / session.regenerate_id() helper.",
+      "fit3048_category": 5,
+      "auth_context": "as admin",
+      "baseline_context": null,
+      "seen_in": [
+        "authed"
+      ]
+    }
+  ]
+}
