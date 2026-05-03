@@ -2038,3 +2038,66 @@ Engine phase ordering is not just a sequencing decision — it's a capability-bo
 
 This is the 9th+ named architectural pattern of Sprint 2. Earlier ones (from /scope, /prd, /spec, /checklist phases): renumbering-robust commits, atomic-acceptance commit boundary, MUST SPLIT ≤30min cap, testbed-shape-mimics-target-not-implementation (cross-cutting γ), checkpoint dual-role (Checkpoint B integration + hour budget), 3-tier acceptance fallback, /scope amendment vs drift, integration-before-presentation, helper extraction reactive (50-line cap trigger). Add this one at /reflect.
 
+---
+
+## Sprint 2 — /build (3-part template, /reflect input)
+
+The deviation accumulator above is the granular history. This section is the synthesis per /checklist Q4(γ) lock — Item 23's final reorganization into the canonical 3-part template (What got built / Notable decisions / Open at end of /build).
+
+### What got built
+
+Sprint 2 added auth-aware web vulnerability scanning to v1. Six new detection modules (access_control, idor, csrf, error_leakage, session, brute_force) plus six v1 retrofit migrations (headers, info_disclosure, paths, sqli, xss, traversal) — all 12 modules registered via `@register`, each ≤50 lines, Lock 5 clean. New framework: a phase-ordered Engine, an auth pipeline (form-login + cookie + dual-session baseline), a URL-pool discovery layer (sitemap + robots + url-list + dynamic + curated with priority dedup), a versioned JSON envelope output sink, a `SCAN COVERAGE` block, a self-contained Flask testbed, and a `@register` module registry. All five checkpoints A-E passed; full 23-item scope landed (no P1 cut), 44 commits across the sprint. Sprint 2 acceptance image fully reproducing against the testbed: 18 findings of 15 distinct types from a single dual-session run with `--url-list <(echo "/idor/1")`.
+
+### Notable decisions during build
+
+Each item links to the checkpoint that surfaced it. Reorganization of the 19 build deviations from the accumulator above, grouped by checkpoint.
+
+**Checkpoint A (foundations — items 1-9):**
+- *Deviation #1 (Item 5a)* — colorama 0.4.6 API mismatch. Spec wrote `wrap_stdout=False`; real API uses `wrap=False` and rejects mixed-arg combinations. Engine `__init__` uses TTY-conditional `colorama.init(...)` to preserve spec intent. Spec wording amendment candidate; behavior unchanged.
+
+**Checkpoint B (auth pipeline + entry point — items 6-9, hour-budget review):**
+- *Deviation #2 (Item 6a)* — `_LoginForm` private dataclass. v1 `Form` in findings.py wasn't shaped for the auth pipeline's user/pass/hidden split. Auth-internal `_LoginForm` solves this without polluting the public Form dataclass. Architectural decision; spec didn't mandate either approach.
+- *Deviation #3 (Item 7)* — `fit3048_category=1` for engine-emitted findings. Engine-emitted INFO findings (Phase 5d shared-session, 5e session-ambiguous, Phase 4 wildcard-intents) inject `fit3048_category` directly because no `FIT3048_CATEGORY_MAP` exists at engine level. Picked Category 1 (operational/observability bucket). Spec silent on engine-emitted finding category mapping.
+- *Deviation #4 (Item 9)* — `_common.send` rename to `inject_param`. v2 `send(url, *, session=None)` collided with v1's `send(session, url, ...)` positional signature. Renamed v1 `send` → `inject_param`. v1 sqli/xss/traversal still imported `send` (atomic-import gate passed) but call sites broke if exercised; Items 20-22 retrofit repaired this. v2 path verified working.
+- *Deviation #5 (Item 8b/9 boundary)* — `_LoginForm` POST + GET handler added to testbed. `setup_form_login` does a GET first to discover the form. Original 8b only spec'd `POST /login`. Added `GET /login` returning a minimal HTML form. Folded into Item 9. Testbed acceptance shape unchanged.
+- **Hour-budget review** — Phase 1+2 actual under ×1.5 trigger. **No P1 cut triggered.** Full 23-item scope retained.
+
+**Checkpoint C (vertical slice + named pattern):**
+- *Deviation #6 (Item 14a → Checkpoint C fix)* — Phase 0.5 vs Phase 3.5/3.6 ordering. Item 14a placed gated-module-in-include validation in `validate_module_flags` at Phase 0.5; that phase is HTTP-blind, so it raised `ConfigurationError` before Phase 3.5 could probe `/__webprobe_testbed__/health` and bypass risk gates. Surfaced by Trump at Checkpoint C with exact repro. Fix: move the check to Phase 3.6 (post-testbed-detection); Engine wraps the Phase in `try/except ConfigurationError → sys.exit(2)` matching the prior hard-error contract. Direct unit test against `filter_modules_by_risk_gates` confirmed multi-error pattern preserved.
+- *Named pattern* — **`phase-boundary-as-capability-boundary`** (9th+ Sprint 2 named pattern). Engine phase ordering is also a capability-boundary decision: each phase has an implicit capability budget (HTTP / file I/O / state derivation). Validations must be placed in the phase whose budget can satisfy them. Promotion candidate to PRD invariant in Sprint 3.
+
+**Checkpoint D (URL pool + output layer — items 10-13):**
+- *Deviation #7-12 (URL pool resolution + output layer)* — discovery priority dedup, robots wildcard intents, sitemap auth-gated re-fetch (Phase 5f), JSON envelope shape decisions, SCAN COVERAGE field cardinality, FIT3048 grouping renderer empty-category labeling. Each resolved against /spec wording during build; all preserved spec intent. (Granular notes deferred to /reflect — accumulator updates rolled into Item 13's commit.)
+
+**Checkpoint E (v1 retrofit + acceptance — items 17-22):**
+- *Deviation #13 (Item 14a)* — `build_units` source_filter parameter. Reclassified at Item 23 review: **capability evolution v1→v2, not deviation.** v2 needed an extra source-filter axis the v1 helper signature didn't expose; signature extension is a planned v2 widening. No /reflect action required.
+- *Deviation #14 (Item 17)* — `info_disclosure` underscore. v1 module slug was `info-disclosure`; v2 retrofit unified to `info_disclosure` (Python identifier shape) for `@register` consistency. **Naming hygiene; not a behavioral deviation.**
+- *Deviation #15 + #16 (Items 17-18, testbed-acceptance-driven)* — additional sensitive-path entries + sqli error-string entries surfaced during testbed acceptance. **Sprint 3 candidate: data-driven classification.** Move `paths/severity_classification.txt` and `sqli_errors_extra.txt` to first-class data files with override hooks rather than appending to in-tree lists.
+- *Deviation #17 (Item 18 — slug disambiguation)* — `sensitive_path_exposed_high` vs `sensitive_path_exposed_medium`. **REAL spec gap.** Spec said one finding_type slug; testbed acceptance required severity-disambiguated emission for FIT3048 grouping correctness. Sprint 3 spec amendment: document slug-disambiguation return shape pattern.
+- *Deviation #18 (Item 21 — traversal)* — Lock 5 enforcement fallout. Two helpers in traversal that read mutable engine state via getattr were dead code after Lock 5 enforcement landed. Removed. **Traversal.py at exactly 50 lines = cap edge; Sprint 3 watch.** Any future traversal touch will require helper refactor or split.
+- *Deviation #19 (Item 22 — xss / stored_xss_candidate)* — `stored_xss_candidate` finding_type listed in xss `FIT3048_CATEGORY_MAP` but module body has no detection algorithm for it (reflected_xss only). **REAL spec gap; two /reflect options:**
+  - (a) Sprint 3 implements stored XSS detection algorithm to populate the finding_type.
+  - (b) Sprint 3 spec amendment removes `stored_xss_candidate` from xss `FIT3048_CATEGORY_MAP`.
+
+### Open at end of /build
+
+Items left unfinished or known-imperfect, explicit handoff to /reflect:
+
+- **No P1 cut triggered.** Phase 1+2 budget under ×1.5 trigger at Checkpoint B; full 23-item scope landed. /reflect should retro the budget pattern: was the ×1.5 threshold conservative enough, or did it leave headroom that masked early-warning signals worth surfacing?
+
+- **Trump's annotations carrying to /reflect:**
+  - **The "one testbed feature serves three modules" insight.** `FixationVulnerableSessionInterface` in `webprobe/testbed.py` simultaneously feeds session_fixation + cookie_no_httponly + PHPSESSID detection. Concrete ROI proof for spec-driven testbed development — the testbed isn't a per-module sandbox, it's a shared shape store. /reflect candidate: promote to a stated testbed design lock.
+  - **`traversal.py` at exactly 50 lines = cap edge; Sprint 3 watch.** Any traversal touch will require helper refactor or split. /reflect: track as a Sprint 3 fragility flag.
+  - **Deviation reclassifications** (per Item 23 review):
+    - #13 `build_units` source_filter — capability evolution (v1→v2), not deviation.
+    - #14 `info_disclosure` underscore — naming hygiene.
+    - #15+#16 — testbed-acceptance-driven; Sprint 3 candidate for data-driven classification (`paths/severity_classification.txt` + `sqli_errors_extra.txt`).
+    - #17 — spec gap (slug-disambiguation return shape) — Sprint 3 spec amendment.
+    - #18 — Lock 5 enforcement fallout, dead-code cleanup.
+    - #19 `stored_xss_candidate` — REAL spec gap; two /reflect options (above).
+  - **`phase-boundary-as-capability-boundary` is the 9th+ Sprint 2 named pattern.** /reflect candidate: promote to PRD invariant in Sprint 3 ("Engine phases declare capability budgets; validations placed by capability fit").
+
+- **Devpost upload is manual.** Item 23 wrote `docs/sprint-2/devpost-update.md` with paste-ready description + tech stack + screenshots-to-upload list. User logs in to Devpost manually and uploads.
+
+- **Tag created locally; not pushed.** `git tag -a v2.0.0` created. Push `v2.0.0` and Sprint 2 commits to remote is the user's call after they review.
+
