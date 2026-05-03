@@ -1022,7 +1022,7 @@ realistic ~22.2 hr, aligns to original Sprint 1 1.5x estimate.
   ```
   Estimated time: 30 min
 
-- [ ] **22. v1 retrofit pair — `sqli` + `xss`**
+- [x] **22. v1 retrofit pair — `sqli` + `xss`**
   Spec ref: `spec.md > v1 module retrofit checklist`
   What to build: **sqli.py:**
     - Declare `auth_strategy = "follow"`

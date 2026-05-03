@@ -1,43 +1,35 @@
-"""Reflected XSS detection: payload appears unescaped in response body."""
+"""xss — v1 retrofit. Spec: spec.md > v1 module retrofit checklist."""
 from __future__ import annotations
+
 import html
-from typing import Callable
-from requests import Session
+
 from requests.exceptions import RequestException
 
-from webprobe.findings import Finding, Target
+from webprobe.findings import Source
+from webprobe.modules._common import build_units, inject_param
+from webprobe.modules._xss_helpers import PAYLOADS, reflected_finding
 from webprobe.modules.base import BaseModule
-from webprobe.modules._common import build_units, send
-from webprobe.modules._xss_helpers import (
-    PAYLOADS, DEGRADATION_THRESHOLD, DEGRADED_MSG, mk_finding,
-)
+from webprobe.registry import register
 
 
+@register
 class XssModule(BaseModule):
     name = "xss"
-    category = "xss"
-    degraded = False  # engine ORs this into args.partial after run()
+    auth_strategy = "follow"
+    source_filter = frozenset({Source.DYNAMIC, Source.URL_LIST, Source.CURATED})
+    FIT3048_CATEGORY_MAP = {"reflected_xss": 3, "stored_xss_candidate": 3}
 
-    def run(self, target: Target, session_factory: Callable[[], Session],
-            report_finding: Callable[[Finding], None]) -> list[Finding]:
-        sess, out, streak = session_factory(), [], 0
-        for url, method, param, base in build_units(target):
+    def run(self, target, session_factory, report_finding) -> None:
+        sess = session_factory()[0]
+        for url, method, param, base in build_units(target, self.source_filter):
             for payload in PAYLOADS:
                 try:
-                    r = send(sess, url, method, param, payload, base)
-                except RequestException:
-                    streak = self._fail(streak); continue
+                    r = inject_param(sess, url, method, param, payload, base)
+                except RequestException as exc:
+                    self._on_request_error(url, exc)
+                    continue
                 if r.status_code >= 500:
-                    streak = self._fail(streak); continue
-                streak = 0
+                    continue
                 if payload in r.text and html.escape(payload) not in r.text:
-                    f = mk_finding(url, param, payload)
-                    out.append(f); report_finding(f)
-                    break  # one finding per param
-        return out
-
-    def _fail(self, streak: int) -> int:
-        streak += 1
-        if streak >= DEGRADATION_THRESHOLD and not self.degraded:
-            print(DEGRADED_MSG); self.degraded = True
-        return streak
+                    report_finding(reflected_finding(url, param, payload))
+                    break

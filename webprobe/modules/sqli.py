@@ -1,47 +1,43 @@
-"""SQL injection detection: error-string + boolean-differential."""
+"""sqli — v1 retrofit. Spec: spec.md > v1 module retrofit checklist."""
 from __future__ import annotations
-from typing import Callable
-from requests import Session
+
 from requests.exceptions import RequestException
 
-from webprobe.findings import Finding, Target
-from webprobe.modules.base import BaseModule
+from webprobe.findings import Source
+from webprobe.modules._common import build_units, inject_param
 from webprobe.modules._sqli_helpers import (
-    PAYLOADS, DIFF_PAIRS, DEGRADATION_THRESHOLD, DEGRADED_MSG,
-    build_units, send, detect_error, diff_hit, err_finding, diff_finding)
+    DIFF_PAIRS, PAYLOADS, detect_error, diff_finding, diff_hit, err_finding,
+)
+from webprobe.modules.base import BaseModule
+from webprobe.registry import register
 
 
+@register
 class SqliModule(BaseModule):
     name = "sqli"
-    category = "sqli"
-    degraded = False  # engine ORs this into args.partial after run()
+    auth_strategy = "follow"
+    source_filter = frozenset({Source.DYNAMIC, Source.URL_LIST})
+    FIT3048_CATEGORY_MAP = {"sqli_error_string": 3, "sqli_boolean_diff": 3}
 
-    def run(self, target: Target, session_factory: Callable[[], Session],
-            report_finding: Callable[[Finding], None]) -> list[Finding]:
-        sess, out, streak = session_factory(), [], 0
-        for url, method, param, base in build_units(target):
+    def run(self, target, session_factory, report_finding) -> None:
+        sess = session_factory()[0]
+        for url, method, param, base in build_units(target, self.source_filter):
             resps, hit = {}, False
             for p in PAYLOADS:
                 try:
-                    r = send(sess, url, method, param, p, base)
-                except RequestException:
-                    streak = self._fail(streak); continue
-                streak = self._fail(streak) if r.status_code >= 500 else 0
+                    r = inject_param(sess, url, method, param, p, base)
+                except RequestException as exc:
+                    self._on_request_error(url, exc)
+                    continue
                 resps[p] = r
                 fp = detect_error(r.text.lower())
                 if fp and not hit:
-                    f = err_finding(url, param, p, fp)
-                    out.append(f); report_finding(f); hit = True
-            if hit: continue
+                    report_finding(err_finding(url, param, p, fp))
+                    hit = True
+            if hit:
+                continue
             for tp, fp in DIFF_PAIRS:
                 tr, fr = resps.get(tp), resps.get(fp)
                 if tr and fr and diff_hit(tr, fr):
-                    f = diff_finding(url, param, tp, fp, tr, fr)
-                    out.append(f); report_finding(f); break
-        return out
-
-    def _fail(self, streak: int) -> int:
-        streak += 1
-        if streak >= DEGRADATION_THRESHOLD and not self.degraded:
-            print(DEGRADED_MSG); self.degraded = True
-        return streak
+                    report_finding(diff_finding(url, param, tp, fp, tr, fr))
+                    break
