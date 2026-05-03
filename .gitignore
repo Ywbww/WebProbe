@@ -1,6 +1,14 @@
-__pycache__
+# Python
+__pycache__/
 *.pyc
 *.egg-info/
+.pytest_cache/
+
+# macOS
+.DS_Store
+
+# Scan output (auto-named per-run; canonical artifacts live in screenshots/sprint-2/)
 webprobe_*.html
 webprobe_*.txt
+webprobe_*.json
 !screenshots/webprobe_*
