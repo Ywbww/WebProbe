@@ -1073,7 +1073,7 @@ realistic ~22.2 hr, aligns to original Sprint 1 1.5x estimate.
       baseline_context populated, SCAN COVERAGE block correct, --fit3048
       grouping mode produces 7-category HTML)
 
-- [ ] **23. v2.0.0 release + Devpost update** *(locked from Phase 1 Q4)*
+- [x] **23. v2.0.0 release + Devpost update** *(locked from Phase 1 Q4)*
   Spec ref: `scope.md > Endpoint A` + `scope.md > Amendment 1` (semver
   progression supersession) + Phase 1 Q4 final-item structure
   **Prerequisites** (must pass before final item starts):
