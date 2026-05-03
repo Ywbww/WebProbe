@@ -979,7 +979,7 @@ realistic ~22.2 hr, aligns to original Sprint 1 1.5x estimate.
   ```
   Estimated time: 30 min
 
-- [ ] **21. v1 retrofit pair — `paths` (with curated.txt move) + `traversal`**
+- [x] **21. v1 retrofit pair — `paths` (with curated.txt move) + `traversal`**
   Spec ref: `spec.md > v1 module retrofit checklist` + `spec.md > Curated
   discovery — v1→v2 architectural shift`
   What to build: **paths.py specifically** (heavy retrofit due to v1→v2

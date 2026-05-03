@@ -43,16 +43,46 @@ def compare_responses(resp_a: Response, resp_b: Response) -> bool:
             == sha256(resp_b.content).hexdigest())
 
 
-def build_units(target: Target) -> list[tuple[str, str, str, dict]]:
-    """v1 carryover. Per-injectable surface enumerator. Used by
-    sqli/xss/traversal (per-param injection)."""
+def build_units(
+    target: Target, source_filter=None,
+) -> list[tuple[str, str, str, dict]]:
+    """v1 carryover (extended). Per-injectable surface enumerator.
+
+    Sprint 1 enumerated `target.url`'s query params + `target.forms`. v2
+    additionally walks `target.urls` filtered by the caller's
+    `source_filter` and extracts GET query params from each pool URL.
+    Modules pass `self.source_filter`; pool entries outside the filter
+    are skipped. None preserves Sprint-1-only behavior.
+    """
+    from urllib.parse import parse_qs, urlparse, urlunparse
+
     units: list[tuple[str, str, str, dict]] = [
         (target.url, "GET", k, {}) for k in target.query_params
     ]
+    seen_unit_keys = {(target.url, "GET", k) for k in target.query_params}
     for fm in target.forms:
         for k in fm.fields:
             base = {f: v for f, v in fm.fields.items() if f != k}
+            key = (fm.action, fm.method.upper(), k)
+            if key in seen_unit_keys:
+                continue
+            seen_unit_keys.add(key)
             units.append((fm.action, fm.method, k, base))
+    if source_filter is not None:
+        for pool_url, src in target.urls:
+            if src not in source_filter:
+                continue
+            parsed = urlparse(pool_url)
+            qs = parse_qs(parsed.query, keep_blank_values=True)
+            if not qs:
+                continue
+            stripped = urlunparse(parsed._replace(query=""))
+            for k in qs:
+                key = (stripped, "GET", k)
+                if key in seen_unit_keys:
+                    continue
+                seen_unit_keys.add(key)
+                units.append((stripped, "GET", k, {}))
     return units
 
 

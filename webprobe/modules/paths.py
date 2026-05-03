@@ -1,46 +1,42 @@
-"""Sensitive paths probe: parallel GET against curated path list."""
+"""paths — v1 retrofit (curated-paths shift). Spec: spec.md > v1 retrofit."""
 from __future__ import annotations
+
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
-from urllib.parse import urljoin
+
 from requests.exceptions import RequestException
 
-from webprobe.findings import Finding
+from webprobe.findings import Source
+from webprobe.modules._paths_helpers import FLAGGED_STATUS, mk_finding
 from webprobe.modules.base import BaseModule
-from webprobe.modules._paths_helpers import (
-    MAX_WORKERS, DEGRADATION_THRESHOLD, FLAGGED_STATUS,
-    DEGRADED_MSG, mk_finding, load_default_paths,
-)
+from webprobe.registry import register
 
-__all__ = ["PathsModule", "load_default_paths"]
+MAX_WORKERS = 20
 
 
+@register
 class PathsModule(BaseModule):
-    name, category, degraded = "paths", "paths", False
+    name = "paths"
+    auth_strategy = "unauth_always"
+    source_filter = frozenset({Source.CURATED, Source.ROBOTS, Source.URL_LIST})
+    FIT3048_CATEGORY_MAP = {"sensitive_path_exposed_high": 1,
+                            "sensitive_path_exposed_medium": 1,
+                            "sensitive_path_exposed_low": 1}
 
-    def __init__(self, path_list: list[str]):
-        self.path_list = path_list
+    def run(self, target, session_factory, report_finding) -> None:
+        s = session_factory()[0]
+        urls = [u for u, src in target.urls if src in self.source_filter]
+        lock = Lock()
 
-    def run(self, target, session_factory, report_finding) -> list[Finding]:
-        base_url = urljoin(target.url, "/")
-        findings, lock, streak = [], Lock(), [0]
-
-        def probe(path: str):
-            url = urljoin(base_url, path.lstrip("/"))
+        def probe(url: str) -> None:
             try:
-                r = session_factory().get(url, timeout=5, allow_redirects=False)
-                fail = r.status_code >= 500
-            except RequestException:
-                r, fail = None, True
-            with lock:
-                streak[0] = streak[0] + 1 if fail else 0
-                if streak[0] >= DEGRADATION_THRESHOLD and not self.degraded:
-                    print(DEGRADED_MSG); self.degraded = True
-            if r is not None and r.status_code in FLAGGED_STATUS:
-                f = mk_finding(path, url, r.status_code)
+                r = s.get(url, timeout=5, allow_redirects=False)
+            except RequestException as exc:
+                self._on_request_error(url, exc)
+                return
+            if r.status_code in FLAGGED_STATUS:
                 with lock:
-                    report_finding(f); findings.append(f)
+                    report_finding(mk_finding(url, r.status_code))
 
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
-            list(pool.map(probe, self.path_list))
-        return findings
+            list(pool.map(probe, urls))
