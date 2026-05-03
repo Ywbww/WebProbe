@@ -1,49 +1,32 @@
-from typing import Callable
+"""headers — v1 retrofit. Spec: spec.md > v1 module retrofit checklist."""
+from __future__ import annotations
 
-from requests import Session
-
-from webprobe.findings import Finding, Target
+from webprobe.findings import ALL_SOURCES
+from webprobe.modules._headers_helpers import (
+    HEADER_CHECKS, cookie_checks, cookie_finding, hdr_finding,
+)
 from webprobe.modules.base import BaseModule
-
-HINTS = {
-    "Content-Security-Policy": "Add Content-Security-Policy header restricting allowed sources.",
-    "X-Frame-Options": "Set X-Frame-Options: DENY or SAMEORIGIN to prevent clickjacking.",
-    "Strict-Transport-Security": "Add Strict-Transport-Security with at least max-age=31536000 on HTTPS.",
-    "X-Content-Type-Options": "Set X-Content-Type-Options: nosniff.",
-    "Referrer-Policy": "Set Referrer-Policy to limit leaked URL info.",
-    "HttpOnly": "Mark cookie HttpOnly to block JavaScript access.",
-    "Secure": "Mark cookie Secure on HTTPS to prevent plaintext transmission.",
-    "SameSite": "Set SameSite=Strict or Lax to mitigate CSRF.",
-}
+from webprobe.registry import register
 
 
+@register
 class HeadersModule(BaseModule):
     name = "headers"
-    category = "headers"
+    auth_strategy = "follow"
+    source_filter = ALL_SOURCES
+    FIT3048_CATEGORY_MAP = {"missing_csp": 4, "missing_hsts": 4,
+                            "missing_x_frame_options": 4, "cookie_no_secure": 4,
+                            "cookie_no_httponly": 4, "cookie_no_samesite": 4}
 
-    def _mk(self, sev, cat, name, url, fc, ev, rem):
-        return Finding(sev, cat, name, url, None, None, ev, None, rem, fc)
-
-    def run(self, target: Target, session_factory: Callable[[], Session],
-            report_finding: Callable[[Finding], None]) -> list[Finding]:
+    def run(self, target, session_factory, report_finding) -> None:
         h, url = target.base_response.headers, target.url
         https = url.lower().startswith("https://")
-        checks = [("Content-Security-Policy", "MEDIUM"), ("X-Frame-Options", "MEDIUM"),
-                  ("X-Content-Type-Options", "LOW"), ("Referrer-Policy", "LOW")]
-        if https:
-            checks.append(("Strict-Transport-Security", "HIGH"))
-        out: list[Finding] = []
-        for hdr, sev in checks:
+        for slug, sev, hdr in HEADER_CHECKS:
             if hdr not in h:
-                out.append(self._mk(sev, "headers", f"Missing {hdr}", url, 5,
-                                    "header absent on response", HINTS[hdr]))
+                report_finding(hdr_finding(slug, sev, hdr, url))
+        if https and "Strict-Transport-Security" not in h:
+            report_finding(hdr_finding(
+                "missing_hsts", "HIGH", "Strict-Transport-Security", url))
         for c in target.base_response.cookies:
-            for attr, sev, cond in (("HttpOnly", "MEDIUM", not c.has_nonstandard_attr("HttpOnly")),
-                                    ("Secure", "HIGH", https and not c.secure),
-                                    ("SameSite", "LOW", not c.get_nonstandard_attr("SameSite"))):
-                if cond:
-                    out.append(self._mk(sev, "cookies", f"Cookie '{c.name}' missing {attr}",
-                                        url, 4, f"no {attr} attribute on cookie '{c.name}'", HINTS[attr]))
-        for f in out:
-            report_finding(f)
-        return out
+            for slug, attr, sev in cookie_checks(c, https):
+                report_finding(cookie_finding(slug, sev, attr, c.name, url))

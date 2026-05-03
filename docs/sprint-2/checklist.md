@@ -940,7 +940,7 @@ realistic ~22.2 hr, aligns to original Sprint 1 1.5x estimate.
   (`grep -rn "category == .idor." webprobe/output/ | wc -l` returns 2).
   Heaviness: medium.
 
-- [ ] **20. v1 retrofit pair — `headers` + `info_disclosure`**
+- [x] **20. v1 retrofit pair — `headers` + `info_disclosure`**
   Spec ref: `spec.md > v1 module retrofit checklist` (9 steps × 6 modules)
   What to build: Apply 9-step retrofit to both modules:
     1. Add `auth_strategy = "follow"`
