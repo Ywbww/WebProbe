@@ -18,7 +18,7 @@ dependencies = [
 testbed = ["Flask>=3.0"]
 
 [project.scripts]
-webprobe = "webprobe.probe:main"
+webprobe = "webprobe.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

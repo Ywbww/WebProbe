@@ -20,9 +20,9 @@ Phase ordering (Engine.run_pipeline):
     Phase 5f   Authed sitemap (stub — body lands at Item 10)
     Phase 4/6/7 Wired progressively in subsequent items.
 
-Sprint 1's module-level `run(args)` function is preserved at the bottom of
-this file so `webprobe/probe.py` keeps working until Item 23 rewires the
-CLI to the v2 Engine class.
+Item 23 (v2.0.0) retired Sprint 1's module-level `run(args)` and
+`build_active_modules` helper plus `webprobe/probe.py`; the Engine class
+below is the sole entry path, invoked from `webprobe/__main__.py`.
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ import sys
 import threading
 import time
 from datetime import datetime
-from typing import List, Optional, Tuple
+from typing import Optional
 
 import colorama
 import requests
@@ -45,7 +45,7 @@ from webprobe.findings import Finding, Source, Target
 from webprobe.registry import MODULE_REGISTRY
 from webprobe.session import make_session_factory
 
-VERSION = "2.0.0-dev"
+VERSION = "2.0.0"
 
 
 class Engine:
@@ -947,140 +947,7 @@ def _hash_body(text: Optional[str]) -> str:
     return hashlib.sha256((text or "").strip().encode("utf-8", "replace")).hexdigest()[:16]
 
 
-# --- Sprint 1 v1 backwards-compat -----------------------------------------
-# probe.py imports `engine` and calls `engine.run(args)`. The v1 implementation
-# is preserved verbatim below until Item 23 rewires probe.py to the v2 Engine
-# class. v1 dependencies are imported lazily inside run() so the Sprint 1
-# output stack isn't loaded at module-import time.
-
-_DEFAULT_MODULE_SLUGS = {"sqli", "xss", "paths", "headers", "info-disclosure", "traversal"}
-_SCAN_CEILING_SECONDS = 90
-_CONNECT_TIMEOUT = 5
-
-
-def _print_banner(args, active_module_names: list[str]) -> None:
-    profile = "cakephp" if getattr(args, "cakephp", False) else "none"
-    lines = [
-        f"WebProbe v{VERSION}",
-        f"Target:  {args.target_url}",
-        f"Modules: [{', '.join(active_module_names)}]",
-        f"Profile: {profile}",
-    ]
-    if not getattr(args, "include_traversal", False):
-        lines.append("(traversal: opt-in via --include-traversal)")
-    lines.append("─" * 60)
-    for line in lines:
-        print(line)
-
-
-def _check_connectivity(url: str) -> Optional[requests.Response]:
-    print("[*] Checking target reachability...")
-    sess = requests.Session()
-    t0 = time.time()
-    try:
-        resp = sess.get(url, timeout=_CONNECT_TIMEOUT, allow_redirects=True)
-    except (requests.ConnectionError, requests.Timeout, requests.RequestException) as e:
-        print("[-] Target unreachable. Check URL and try again.")
-        print(f"    ({type(e).__name__}: {e})")
-        sys.exit(1)
-    elapsed = time.time() - t0
-    print(f"[+] Target responding (HTTP {resp.status_code}, {elapsed:.1f}s)")
-    return resp
-
-
-def build_active_modules(args):
-    from webprobe.modules import MODULES
-    selected = set(getattr(args, "only", None) or _DEFAULT_MODULE_SLUGS)
-    if not getattr(args, "include_traversal", False):
-        selected.discard("traversal")
-    instances = []
-    for cls in MODULES:
-        if cls.name not in selected:
-            continue
-        if cls.name == "paths":
-            from webprobe.modules.paths import load_default_paths
-            from webprobe.profiles import CAKEPHP_PATHS
-            extra = CAKEPHP_PATHS if getattr(args, "cakephp", False) else []
-            instances.append(cls(path_list=load_default_paths() + extra))
-        else:
-            instances.append(cls())
-    return instances
-
-
-def run(args) -> int:
-    """v1 entry point preserved for probe.py until Item 23 rewires to v2 Engine."""
-    from webprobe.session import make_session_factory
-    from webprobe.target import discover_target
-    from webprobe.output import colors, filename_for_target, terminal
-    from webprobe.output.html import render_html_v1 as render_html
-    from webprobe.output.txt import render_txt_v1 as render_txt
-
-    colors.init()
-    started = time.time()
-    started_dt = datetime.now().astimezone()
-
-    active_modules = build_active_modules(args)
-    args.modules_scheduled = len(active_modules)
-
-    _print_banner(args, [m.name for m in active_modules])
-
-    base_response = _check_connectivity(args.target_url)
-
-    profile = "cakephp" if getattr(args, "cakephp", False) else None
-    target = discover_target(args.target_url, base_response, profile)
-
-    findings: List[Finding] = []
-    errored_modules: List[Tuple[str, Exception]] = []
-    stdout_lock = threading.Lock()
-    ceiling_hit = False
-    degraded_any = False
-
-    def report_finding(f: Finding) -> None:
-        with stdout_lock:
-            terminal.render_inline_tease(f, args)
-
-    session_factory = make_session_factory(args)
-
-    for module in active_modules:
-        if (time.time() - started) >= _SCAN_CEILING_SECONDS:
-            with stdout_lock:
-                print(f"[!] Scan ceiling reached ({_SCAN_CEILING_SECONDS}s) — emitting findings collected so far.")
-            ceiling_hit = True
-            errored_modules.append((module.name, TimeoutError(f"ceiling {_SCAN_CEILING_SECONDS}s")))
-            continue
-        with stdout_lock:
-            print(f"[*] Running: {module.name}...")
-        try:
-            module_findings = module.run(target, session_factory, report_finding)
-            findings.extend(module_findings)
-        except Exception as e:
-            with stdout_lock:
-                print(f"[!] {module.name}: errored ({type(e).__name__}) — skipped")
-            errored_modules.append((module.name, e))
-        if getattr(module, "degraded", False):
-            degraded_any = True
-
-    duration = time.time() - started
-    args.partial = bool(errored_modules) or ceiling_hit or degraded_any
-
-    print()
-    print(terminal.render_findings_block(findings, errored_modules, args))
-
-    output_dir = getattr(args, "output", ".") or "."
-    html_path = filename_for_target(args.target_url, started_dt, output_dir, "html")
-    html_path.write_text(
-        render_html(findings, errored_modules, args, target, duration),
-        encoding="utf-8",
-    )
-    args.report_filename = html_path.name
-
-    txt_path = html_path.with_suffix(".txt")
-    txt_path.write_text(
-        render_txt(findings, errored_modules, args, target, duration),
-        encoding="utf-8",
-    )
-
-    print()
-    print(terminal.render_summary(findings, errored_modules, args, duration))
-
-    return 0
+# Sprint 1's module-level `run(args)` plus `build_active_modules` helper were
+# retired at Item 23 (v2.0.0 release). The v2 Engine class above is now the
+# sole entry path; `python3 -m webprobe ...` invokes `webprobe/__main__.py`
+# which constructs and runs the Engine directly.
